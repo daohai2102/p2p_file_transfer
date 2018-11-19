@@ -2,9 +2,28 @@
 #include <stdlib.h>
 #include "LinkedList.h"
 
-struct Node* newNode(struct Segment seg){
+struct Node* newNode(void *data, int data_type){
 	struct Node* newN = malloc(sizeof(struct Node));
-	newN->seg = seg;
+	switch (data_type){
+		case SEGMENT_TYPE:
+			{
+				struct Segment *tmp = malloc(sizeof(struct Segment));
+				*tmp = *((struct Segment*)data);
+				newN->data = tmp;
+			}
+			break;
+		case INT_TYPE:
+			{
+				int *tmp = malloc(sizeof(int));
+				*tmp = *((int*) data);
+				newN->data = tmp;
+			}
+			break;
+		default:
+			fprintf(stderr, "newNode: unknown data type\b");
+			free(newN);
+			newN = NULL;
+	}
 	return newN;
 }
 

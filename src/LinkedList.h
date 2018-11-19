@@ -1,7 +1,7 @@
 #ifndef _DATA_STRUCTURE_
 #define _DATA_STRUCTURE_
 
-#include "Segment.h"
+#include "peer/Segment.h"
 
 #define INSERT_NODE_SUCCESS 1
 #define INSERT_NODE_NOT_IN_LL -2 
@@ -11,8 +11,11 @@
 #define REMOVE_NODE_EMPTY_LL -2
 #define REMOVE_NODE_SUCCESS 1
 
+#define SEGMENT_TYPE	0
+#define INT_TYPE		1 
+
 struct Node{
-	struct Segment seg;
+	void *data;
 	struct Node *next;
 	struct Node *prev;
 };
@@ -23,7 +26,7 @@ struct LinkedList{
 	unsigned int n_nodes;
 };
 
-struct Node* newNode(struct Segment seg);
+struct Node* newNode(void *data, int data_type);
 
 struct LinkedList* newLinkedList();
 
