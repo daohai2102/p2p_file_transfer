@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "LinkedList.h"
+#include "peer/peer_data_structure.h"
 
 struct Node* newNode(void *data, int data_type){
 	struct Node* newN = malloc(sizeof(struct Node));
@@ -45,6 +46,7 @@ void destructLinkedList(struct LinkedList *ll){
 
 	while (it != NULL){
 		struct Node *tmp = it->next;
+		free(it->data);
 		free(it);
 		it = tmp;
 	}
