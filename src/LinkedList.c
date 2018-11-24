@@ -1,29 +1,48 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <netinet/in.h>
 #include "LinkedList.h"
-#include "peer/peer_data_structure.h"
 
 struct Node* newNode(void *data, int data_type){
 	struct Node* newN = malloc(sizeof(struct Node));
 	switch (data_type){
 		case SEGMENT_TYPE:
-			{
-				struct Segment *tmp = malloc(sizeof(struct Segment));
-				*tmp = *((struct Segment*)data);
-				newN->data = tmp;
-			}
+		{
+			struct Segment *tmp = malloc(sizeof(struct Segment));
+			*tmp = *((struct Segment*)data);
+			newN->data = tmp;
+			newN->type = SEGMENT_TYPE;
 			break;
+		}
 		case INT_TYPE:
-			{
-				int *tmp = malloc(sizeof(int));
-				*tmp = *((int*) data);
-				newN->data = tmp;
-			}
+		{
+			int *tmp = malloc(sizeof(int));
+			*tmp = *((int*) data);
+			newN->data = tmp;
+			newN->type = INT_TYPE;
 			break;
+		}
+		case FILE_OWNER_TYPE:
+		{
+			struct FileOwner *tmp = malloc(sizeof(struct FileOwner));
+			*tmp = *((struct FileOwner*)data);
+			newN->data = tmp;
+			newN->type = FILE_OWNER_TYPE;
+			break;
+		}
+		case IN_ADDR_TYPE:
+		{
+			struct in_addr *tmp = malloc(sizeof(struct in_addr));
+			*tmp = *((struct in_addr*)data);
+			newN->data = tmp;
+			newN->type = IN_ADDR_TYPE;
+			break;
+		}
 		default:
 			fprintf(stderr, "newNode: unknown data type\b");
 			free(newN);
 			newN = NULL;
+			break;
 	}
 	return newN;
 }
@@ -46,6 +65,14 @@ void destructLinkedList(struct LinkedList *ll){
 
 	while (it != NULL){
 		struct Node *tmp = it->next;
+		switch (it->type){
+			case FILE_OWNER_TYPE:
+			{
+				struct FileOwner *file = (struct FileOwner*)(it->data);
+				destructLinkedList(file->host_list);
+				break;
+			}
+		}
 		free(it->data);
 		free(it);
 		it = tmp;

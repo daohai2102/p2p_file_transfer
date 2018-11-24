@@ -1,12 +1,13 @@
-objects = test.o ../src/LinkedList.o
+objects = test.o ../src/peer/update_file_list.o
+
 # Global target; when 'make' is run without arguments, this is what it should do
 
 test: $(objects)
 	$(CC) -o test $(objects)
 
-test.o: ../src/LinkedList.h
+test.o: ../src/peer/update_file_list.o
 
-../src/LinkedList.o: ../src/LinkedList.h
+../src/peer/update_file_list.o: ../src/peer/update_file_list.h
 
 # These variables hold the name of the compilation tool, the compilation flags and the link flags
 # We make use of these variables in the package manifest
