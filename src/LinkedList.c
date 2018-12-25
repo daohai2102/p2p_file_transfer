@@ -30,12 +30,12 @@ struct Node* newNode(void *data, int data_type){
 			newN->type = FILE_OWNER_TYPE;
 			break;
 		}
-		case IN_ADDR_TYPE:
+		case DATA_HOST_TYPE:
 		{
-			struct in_addr *tmp = malloc(sizeof(struct in_addr));
-			*tmp = *((struct in_addr*)data);
+			struct DataHost *tmp = malloc(sizeof(struct DataHost));
+			*tmp = *((struct DataHost*)data);
 			newN->data = tmp;
-			newN->type = IN_ADDR_TYPE;
+			newN->type = DATA_HOST_TYPE;
 			break;
 		}
 		default:
@@ -165,6 +165,15 @@ int removeNode(struct LinkedList *ll, struct Node *node){
 	} else {
 		prev->next = next;
 		next->prev = prev;
+	}
+
+	switch (node->type){
+		case FILE_OWNER_TYPE:
+		{
+			struct FileOwner *file = (struct FileOwner*)(node->data);
+			destructLinkedList(file->host_list);
+			break;
+		}
 	}
 
 	free(node);

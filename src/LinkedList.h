@@ -14,18 +14,25 @@
 #define SEGMENT_TYPE	0
 #define INT_TYPE		1 
 #define FILE_OWNER_TYPE 2
-#define IN_ADDR_TYPE 3
+#define DATA_HOST_TYPE 3
 
 struct FileOwner{
 	char filename[256];
 	uint32_t filesize;
-	struct LinkedList *host_list;
+	struct LinkedList *host_list;	// LinkedList with data type DataHost
 };
 
 
 struct Segment{
 	uint32_t offset;
 	uint32_t n_bytes;
+};
+
+
+/* info for each peer that own the data */
+struct DataHost{
+	uint32_t ip_addr;
+	uint16_t port;			//equal to data_port from the struct net_info
 };
 
 struct Node{
