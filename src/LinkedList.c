@@ -151,6 +151,8 @@ int removeNode(struct LinkedList *ll, struct Node *node){
 	struct Node *prev = node->prev;
 	struct Node *next = node->next;
 
+	//printf("process prev and next\n");
+
 	if (ll->n_nodes == 1){
 		ll->head = NULL;
 		ll->tail = NULL;
@@ -167,6 +169,7 @@ int removeNode(struct LinkedList *ll, struct Node *node){
 		next->prev = prev;
 	}
 
+	//printf("free node->data\n");
 	switch (node->type){
 		case FILE_OWNER_TYPE:
 		{
@@ -174,12 +177,19 @@ int removeNode(struct LinkedList *ll, struct Node *node){
 			destructLinkedList(file->host_list);
 			break;
 		}
+		default:
+		{
+			free(node->data);
+			break;
+		}
 	}
 
+	//printf("free node\n");
 	free(node);
+	//printf("decrease n_nodes\n");
 	ll->n_nodes --;
-	prev->next = next;
-	next->prev = prev;
+	//prev->next = next;
+	//next->prev = prev;
 
 	return REMOVE_NODE_SUCCESS;
 }
