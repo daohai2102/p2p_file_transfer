@@ -5,5 +5,6 @@
 
 extern uint16_t dataPort;
 
+void announceDataPort(int sockfd);
 #endif
 
