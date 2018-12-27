@@ -129,9 +129,54 @@ void update_file_list(struct net_info cli_info){
 		host.port = cli_info.data_port;
 
 		if (status == FILE_NEW){
-			/* TODO: add the host to the list */
+			/* add the host to the list */
+			struct Node *host_node = newNode(&host, DATA_HOST_TYPE);
+
+			//check if the file has already been in the list
+			if (llContainFile(file_list, filename)){
+				fprintf(stream, "\'%s\' existed, add host to the list\n", filename);
+				/* insert the host into the host_list of the file
+				 */
+
+				//get the node which contains the file in the file_list
+				struct Node *node = getNodeByFilename(file_list, filename);
+				struct FileOwner *file = (struct FileOwner*)node->data;
+
+				/* TODO: need to check if the host already existed */
+				push(file->host_list, host_node);
+			} else {
+				fprintf(stream, "add \'%s\' to file_list, add host to host_list\n", filename);
+				//create a new node to store file's info
+				struct FileOwner new_file;
+				strcpy(new_file.filename, filename);
+				fprintf(stream, "%s > new_file->filename: %s\n", cli_addr, new_file.filename);
+				new_file.filesize = filesize;
+				fprintf(stream, "%s > new_file->filesize: %u\n", cli_addr, new_file.filesize);
+				new_file.host_list = newLinkedList();
+				fprintf(stream, "%s > new_file->host_list: %p\n", cli_addr, new_file.host_list);
+				push(new_file.host_list, host_node);
+				fprintf(stream, "%s > new_file->host_list->head: %p\n", 
+						cli_addr, new_file.host_list->head);
+				struct Node *file_node = newNode(&new_file, FILE_OWNER_TYPE);
+				push(file_list, file_node);
+			}
+
+			fprintf(stdout, "%s > added a new file: %s\n", 
+					cli_addr, filename);
 		} else if (status == FILE_DELETED){
-			/* TODO: remove the host from the list */
+			/* remove the host from the list */
+			//remove the host from the host_list of the file
+			/* TODO: need to check if the file really exist in the file_list
+			 * TODO: need to check if the host really exist in the host_list of the file */
+			struct Node *file_node = getNodeByFilename(file_list, filename);
+			struct FileOwner *file = (struct FileOwner*)(file_node->data);
+			struct Node *host_node = getNodeByHost(file->host_list, host);
+			removeNode(file->host_list, host_node);
+			/* if the host_list is empty, also remove the file from file_list */
+			if (file->host_list->n_nodes <= 0){
+				removeNode(file_list, file_node);
+			}
+			fprintf(stdout, "%s > deleted a file: %s\n", cli_addr, filename);
 		}
 	}
 }
