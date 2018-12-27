@@ -126,6 +126,17 @@ void *serveClient(void *arg){
 			fprintf(stdout, "%s > dataPort: %u\n", cli_addr, ntohs(data_port));
 			cli_info.data_port = ntohs(data_port);
 		} else if (packet_type == FILE_LIST_UPDATE){
+			if (cli_info.data_port == 0){
+				//DATA_PORT_ANNOUNCEMENT must be sent first
+				fprintf(stderr, "%s:%u > DATA_PORT_ANNOUNCEMENT must be sent first\n",
+						cli_info.ip_add, cli_info.port);
+				fprintf(stderr, "closing connection from %s:%u\n", cli_info.ip_add, cli_info.port);
+				close(cli_info.sockfd);
+				fprintf(stderr, "connection from %s:%u closed\n", cli_info.ip_add, cli_info.port);
+				int ret = 100;
+				pthread_exit(&ret);
+			}
+			update_file_list(cli_info);
 
 		} else if (packet_type == LIST_FILES_REQUEST){
 			//do something

@@ -67,3 +67,71 @@ void removeHost(struct DataHost host){
 	}
 	pthread_mutex_unlock(&lock_file_list);
 }
+
+void update_file_list(struct net_info cli_info){
+	if (! file_list){
+		file_list = newLinkedList();
+	}
+
+	char cli_addr[22];
+
+	sprintf(cli_addr, "%s:%u", cli_info.ip_add, cli_info.port);
+
+	fprintf(stderr, "%s > file_list_update\n", cli_addr);
+
+	long n_bytes;
+	uint8_t n_files;
+	n_bytes = readBytes(cli_info.sockfd, &n_files, sizeof(n_files));
+	if (n_bytes <= 0){
+		handleSocketError(cli_info, "read n_files from socket");
+		exit(1);
+	}
+	fprintf(stream, "%s > n_files: %u\n", cli_addr, n_files);
+	uint8_t i = 0;
+	for (; i < n_files; i++){
+		//file status
+		uint8_t status;
+		n_bytes = readBytes(cli_info.sockfd, &status, sizeof(status));
+		if (n_bytes <= 0){
+			handleSocketError(cli_info, "read status from socket");
+		}
+		fprintf(stream, "%s > status: %u\n", cli_addr, status);
+
+		//filename length
+		uint16_t filename_length;
+		n_bytes = readBytes(cli_info.sockfd, &filename_length, sizeof(filename_length));
+		if (n_bytes <= 0){
+			handleSocketError(cli_info, "read filename_length from socket");
+		}
+		filename_length = ntohs(filename_length);
+		fprintf(stream, "%s > filename_length: %u\n", cli_addr, filename_length);
+
+		//filename
+		char *filename = malloc(filename_length);
+		n_bytes = readBytes(cli_info.sockfd, filename, filename_length);
+		if (n_bytes <= 0){
+			handleSocketError(cli_info, "read filename from socket"); 
+		} 
+		fprintf(stream, "%s > filename: %s\n", cli_addr, filename);
+
+		//filesize
+		uint32_t filesize;
+		n_bytes = readBytes(cli_info.sockfd, &filesize, sizeof(filesize));
+		if (n_bytes <= 0){
+			handleSocketError(cli_info, "read filesize from socket");
+		}
+		filesize = ntohl(filesize);
+		fprintf(stream, "%s > filesize: %u\n", cli_addr, filesize);
+		
+		//struct DataHost *host = malloc(sizeof(struct DataHost));
+		struct DataHost host;
+		host.ip_addr = ntohl(inet_addr(cli_info.ip_add));
+		host.port = cli_info.data_port;
+
+		if (status == FILE_NEW){
+			/* TODO: add the host to the list */
+		} else if (status == FILE_DELETED){
+			/* TODO: remove the host from the list */
+		}
+	}
+}
