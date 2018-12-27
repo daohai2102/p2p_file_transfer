@@ -59,6 +59,8 @@ int main(int argc, char **argv){
 	/* port used to listen for download_file_request */
 	dataPort = real_sock_in.sin_port;	//network byte order
 	//fprintf(stream, "main > dataPort: %u\n", ntohs(dataPort));
+	
+	update_file_list("./");
 
 	return 0;
 }
