@@ -12,7 +12,7 @@ struct FileStatus{
 extern uint16_t dataPort;
 
 void announceDataPort(int sockfd);
-void update_file_list(char *dir_name);
+void update_file_list(char *dir_name, int servsock);
 void monitor_directory(char *dir, int socketfd);
 #endif
 

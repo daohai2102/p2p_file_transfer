@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 #include "../common.h"
+#include "connect_index_server.h"
 #include "update_file_list.h"
 
 
@@ -60,7 +61,8 @@ int main(int argc, char **argv){
 	dataPort = real_sock_in.sin_port;	//network byte order
 	//fprintf(stream, "main > dataPort: %u\n", ntohs(dataPort));
 	
-	update_file_list("./");
+	int servsock = connect_to_index_server();
+	update_file_list("./", servsock);
 
 	return 0;
 }
