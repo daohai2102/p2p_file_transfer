@@ -46,3 +46,18 @@ int connect_to_index_server(){
 	return servsocket;
 }
 
+void* process_response(void *arg){
+	pthread_detach(pthread_self());
+	int servsock = *(int*)arg;
+
+	/* process responses from the index server */
+	uint8_t packet_type;
+	while (readBytes(servsock, &packet_type, sizeof(packet_type)) > 0){
+		if (packet_type == LIST_FILES_RESPONSE){
+			process_list_files_response(servsock);
+		} else if (packet_type == LIST_HOSTS_RESPONSE){
+			/* TODO: process list_hosts_response */
+		}
+	}
+	return NULL;
+}

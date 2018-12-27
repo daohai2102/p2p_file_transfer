@@ -11,6 +11,7 @@
 #include "../common.h"
 #include "connect_index_server.h"
 #include "update_file_list.h"
+#include "list_files_request.h"
 
 
 int main(int argc, char **argv){
@@ -70,8 +71,28 @@ int main(int argc, char **argv){
 		exit(1);
 	}
 
+	/* listen for and process responses from the index server */
+	pthread_t process_response_tid;
+	thr = pthread_create(&process_response_tid, NULL, &process_response, (void*)&servsock);
+	if (thr != 0){
+		print_error("new thread to process response from the index server");
+		close(servsock);
+		exit(1);
+	}
+
 	while(1){
-		sleep(1);
+		printf("command> ");
+		char command[20];
+		char filename[256];
+		scanf("%s", command);
+		fgets(filename, sizeof(filename), stdin);
+		
+		if (strcmp(command, "ls") == 0){
+			/* TODO: send list_files_request */
+			send_list_files_request();
+		} else if (strcmp(command, "get") == 0){
+			/* TODO: send list_hosts_request */
+		}
 	}
 
 	return 0;
