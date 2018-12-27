@@ -30,6 +30,57 @@ void announceDataPort(int sockfd){
 }
 
 static void send_file_list(int sockfd, struct FileStatus *fs, uint8_t n_fs){
+	//send header
+	int n_bytes = writeBytes(sockfd, (void*)&FILE_LIST_UPDATE, sizeof(FILE_LIST_UPDATE));
+
+	if (n_bytes <= 0){
+		print_error("send FILE_LIST_UPDATE to index server");
+		exit(1);
+	}
+	
+	//send the number of files
+	n_bytes = writeBytes(sockfd, (void*)&n_fs, sizeof(n_fs));
+
+	//send file list
+	uint8_t i = 0;
+	for (; i < n_fs; ++i){
+		fprintf(stdout, "sending info of \'%s\'\n", fs[i].filename);
+
+		//send file status
+		fprintf(stream, "status: %u\n", fs[i].status);
+		n_bytes = writeBytes(sockfd, (void*)&fs[i].status, sizeof(fs[i].status));
+		if (n_bytes <= 0){
+			print_error("send file status to index server");
+			exit(1);
+		}
+		//send filename length
+		//+1 to include '\0'
+		uint16_t filename_length = strlen(fs[i].filename) + 1;
+		fprintf(stream, "filename_length: %u\n", filename_length);
+		filename_length = htons(filename_length);
+		fprintf(stream, "filename_length: %u (big endian)\n", filename_length);
+		n_bytes = writeBytes(sockfd, (void*)&filename_length, sizeof(filename_length));
+		if (n_bytes <= 0){
+			print_error("send filename length to index server");
+			exit(1);
+		}
+		//send filename
+		fprintf(stream, "filename: \'%s\'\n", fs[i].filename);
+		n_bytes = writeBytes(sockfd, (void*)(fs[i].filename), ntohs(filename_length));
+		if (n_bytes <= 0){
+			print_error("send filename to index server");
+			exit(1);
+		}
+		//send file size
+		fprintf(stream, "filesize: %u\n", fs[i].filesize);
+		fs[i].filesize = htonl(fs[i].filesize);
+		fprintf(stream, "filesize: %u (big endian)\n", fs[i].filesize);
+		n_bytes = writeBytes(sockfd, (void*)&fs[i].filesize, sizeof(fs[i].filesize));
+		if (n_bytes <= 0){
+			print_error("send filesize to index server");
+			exit(1);
+		}
+	}
 	return;
 }
 
