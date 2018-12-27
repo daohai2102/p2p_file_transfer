@@ -9,6 +9,7 @@
 #include "update_file_list.h"
 #include "../common.h"
 #include "../sockio.h"
+#include "connect_index_server.h"
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
@@ -16,6 +17,10 @@
 uint16_t dataPort = 0;
 
 void announceDataPort(int sockfd){
+	/* mutex lock the socket to avoid intersection of multiple messages 
+	 * from different types */
+	pthread_mutex_lock(&lock_servsock);
+
 	int n_bytes = writeBytes(sockfd, 
 							(void*)&DATA_PORT_ANNOUNCEMENT, 
 							sizeof(DATA_PORT_ANNOUNCEMENT));
@@ -31,9 +36,15 @@ void announceDataPort(int sockfd){
 		print_error("send data port to index server");
 		exit(1);
 	}
+
+	pthread_mutex_unlock(&lock_servsock);
 }
 
 static void send_file_list(int sockfd, struct FileStatus *fs, uint8_t n_fs){
+	/* mutex lock the socket to avoid intersection of multiple messages 
+	 * from different types */
+	pthread_mutex_lock(&lock_servsock);
+
 	//send header
 	int n_bytes = writeBytes(sockfd, (void*)&FILE_LIST_UPDATE, sizeof(FILE_LIST_UPDATE));
 
@@ -85,6 +96,7 @@ static void send_file_list(int sockfd, struct FileStatus *fs, uint8_t n_fs){
 			exit(1);
 		}
 	}
+	pthread_mutex_unlock(&lock_servsock);
 	return;
 }
 

@@ -7,6 +7,8 @@
 #include "../sockio.h"
 #include "connect_index_server.h"
 
+pthread_mutex_t lock_servsock = PTHREAD_MUTEX_INITIALIZER;
+
 
 int connect_to_index_server(){
 	/* connect to index server */
