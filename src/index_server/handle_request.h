@@ -18,5 +18,6 @@ struct net_info{
 };
 
 void handleSocketError(struct net_info cli_info, char *mess);
+void removeHost(struct DataHost host);
 
 #endif
