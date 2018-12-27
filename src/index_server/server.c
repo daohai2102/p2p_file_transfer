@@ -12,6 +12,7 @@
 #include <pthread.h>
 
 #include "../common.h"
+#include "../sockio.h"
 #include "handle_request.h"
 
 
@@ -90,5 +91,29 @@ int main(int argc, char **argv){
 }
 
 void *serveClient(void *arg){
+	pthread_detach(pthread_self());
+	struct net_info cli_info = *((struct net_info*) arg);
+	free(arg);
+	char cli_addr[256];
+	sprintf(cli_addr, "%s:%u", cli_info.ip_add, cli_info.port);
+
+	printf("connection from client: %s\n", cli_addr);
+	uint8_t packet_type;
+
+	/* receive request from clients,
+	 * then response accordingly */
+	//read packet type first
+	while(readBytes(cli_info.sockfd, &packet_type, sizeof(packet_type)) > 0){
+		if (packet_type == DATA_PORT_ANNOUNCEMENT){
+
+		} else if (packet_type == FILE_LIST_UPDATE){
+
+		} else if (packet_type == LIST_FILES_REQUEST){
+			//do something
+		} else if (packet_type == LIST_HOSTS_REQUEST){
+			//do something
+		}
+	}
+	handleSocketError(cli_info, "read from socket");
 	return NULL;
 }

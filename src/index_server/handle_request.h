@@ -17,4 +17,6 @@ struct net_info{
 	uint16_t data_port;		//client listen for download_file_request
 };
 
+void handleSocketError(struct net_info cli_info, char *mess);
+
 #endif
