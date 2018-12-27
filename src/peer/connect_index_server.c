@@ -2,13 +2,16 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "../common.h"
 #include "../sockio.h"
 #include "connect_index_server.h"
+#include "list_files_request.h"
 
 pthread_mutex_t lock_servsock = PTHREAD_MUTEX_INITIALIZER;
 
+int servsock = 0;
 
 int connect_to_index_server(){
 	/* connect to index server */
@@ -28,16 +31,18 @@ int connect_to_index_server(){
 	servsin.sin_addr.s_addr = inet_addr(servip);
 	servsin.sin_port = htons(atoi(strtok(NULL, ":")));
 
-	int servsock = socket(AF_INET, SOCK_STREAM, 0);
-	if (servsock < 0){
+	int servsocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (servsocket < 0){
 		print_error("socket");
 		exit(2);
 	}
 
-	if (connect(servsock, (struct sockaddr*) &servsin, sizeof(servsin)) < 0){
+	if (connect(servsocket, (struct sockaddr*) &servsin, sizeof(servsin)) < 0){
 		print_error("connect");
 		exit(3);
 	}
 
-	return servsock;
+	servsock = servsocket;
+	return servsocket;
 }
+

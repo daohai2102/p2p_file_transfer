@@ -61,8 +61,18 @@ int main(int argc, char **argv){
 	dataPort = real_sock_in.sin_port;	//network byte order
 	//fprintf(stream, "main > dataPort: %u\n", ntohs(dataPort));
 	
-	int servsock = connect_to_index_server();
-	update_file_list("./", servsock);
+	connect_to_index_server();
+
+	pthread_t tid;
+	int thr = pthread_create(&tid, NULL, &update_file_list, "./");
+	if (thr != 0){
+		print_error("new thread to update file list to the index server");
+		exit(1);
+	}
+
+	while(1){
+		sleep(1);
+	}
 
 	return 0;
 }

@@ -100,7 +100,8 @@ static void send_file_list(int sockfd, struct FileStatus *fs, uint8_t n_fs){
 	return;
 }
 
-void update_file_list(char *dir_name, int servsock){
+void* update_file_list(void *arg){
+	char *dir_name = (char*)arg;
 	//data_port_announcement must be sent first
 	announceDataPort(servsock);
 
@@ -136,6 +137,7 @@ void update_file_list(char *dir_name, int servsock){
 		exit(1);
 	}
 	monitor_directory(dir_name, servsock);
+	return NULL;
 }
 
 void monitor_directory(char *dir, int socketfd){
