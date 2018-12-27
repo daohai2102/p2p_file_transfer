@@ -14,6 +14,74 @@
 struct LinkedList *file_list = NULL;
 pthread_mutex_t lock_file_list = PTHREAD_MUTEX_INITIALIZER;
 
+static void displayFileListFromHost(uint32_t ip_addr, uint16_t port){
+	printf("%-4s | %-25s | %-50s | %-15s\n", "No", "Host", "Filename", "Filesize (byte)");
+	pthread_mutex_lock(&lock_file_list);
+	struct Node *it = file_list->head;
+	int k = 0;
+	for (; it != NULL; it = it->next){
+		struct FileOwner *fo = (struct FileOwner*)it->data;
+		//printf("file \'%s\'\n", fo->filename);
+		//if (fo->host_list == NULL){
+		//	printf("fo->host_list == NULL\n");
+		//}
+		struct Node *it2 = fo->host_list->head;
+		for (; it2 != NULL; it2 = it2->next){
+			struct DataHost *dh = (struct DataHost*)it2->data;
+			//printf("(%u:%u) vs (%u:%u)\n", host.ip_addr, host.port, dh->ip_addr, dh->port);
+			if (ip_addr == dh->ip_addr && port == dh->port){
+				char delim[104];
+				memset(delim, '.', 103);
+				delim[103] = 0;
+				printf("%s\n", delim);
+				char host[22];
+				struct in_addr addr;
+				addr.s_addr = htonl(dh->ip_addr);
+				sprintf(host, "%s:%u", inet_ntoa(addr), dh->port);
+				k++;
+				printf("%-4d | %-25s | %-50s | %-15u\n", k, host, fo->filename, fo->filesize);
+				break;
+			}
+		}
+	}
+	pthread_mutex_unlock(&lock_file_list);
+	printf("\n");
+}
+
+static void displayFileList(){
+	printf("%-4s | %-25s | %-50s | %-15s\n", "No", "Host", "Filename", "Filesize (byte)");
+	pthread_mutex_lock(&lock_file_list);
+	if (file_list == NULL){
+		fprintf(stderr, "file_list == NULL\n");
+		return;
+	}
+	struct Node *it = file_list->head;
+	int k = 0;
+	for (; it != NULL; it = it->next){
+		struct FileOwner *fo = (struct FileOwner*)it->data;
+		if (fo->host_list == NULL){
+			fprintf(stderr, "\'%s\' has fo->host_list == NULL\n", fo->filename);
+			continue;
+		}
+		struct Node *it2 = fo->host_list->head;
+		for (; it2 != NULL; it2 = it2->next){
+			k++;
+			char delim[104];
+			memset(delim, '.', 103);
+			delim[103] = 0;
+			printf("%s\n", delim);
+			struct DataHost *dh = (struct DataHost*)it2->data;
+			char host[22];
+			struct in_addr addr;
+			addr.s_addr = htonl(dh->ip_addr);
+			sprintf(host, "%s:%u", inet_ntoa(addr), dh->port);
+			printf("%-4d | %-25s | %-50s | %-15u\n", k, host, fo->filename, fo->filesize);
+		}
+	}
+	pthread_mutex_unlock(&lock_file_list);
+	printf("\n");
+}
+
 void handleSocketError(struct net_info cli_info, char *mess){
 	//print error message
 	char err_mess[256];
@@ -30,7 +98,9 @@ void handleSocketError(struct net_info cli_info, char *mess){
 	close(cli_info.sockfd);
 	fprintf(stderr, "connection from %s:%u closed\n", cli_info.ip_add, cli_info.port);
 
-	/* TODO: display file list */
+	/* display file list */
+	fprintf(stdout, "File list after removing the host: \n");
+	displayFileList();
 
 	int ret = 100;
 	pthread_exit(&ret);
@@ -88,6 +158,7 @@ void update_file_list(struct net_info cli_info){
 	}
 	fprintf(stream, "%s > n_files: %u\n", cli_addr, n_files);
 	uint8_t i = 0;
+	int changed = 0;
 	for (; i < n_files; i++){
 		//file status
 		uint8_t status;
@@ -129,6 +200,7 @@ void update_file_list(struct net_info cli_info){
 		host.port = cli_info.data_port;
 
 		if (status == FILE_NEW){
+			changed = 1;
 			/* add the host to the list */
 			struct Node *host_node = newNode(&host, DATA_HOST_TYPE);
 
@@ -164,6 +236,7 @@ void update_file_list(struct net_info cli_info){
 			fprintf(stdout, "%s > added a new file: %s\n", 
 					cli_addr, filename);
 		} else if (status == FILE_DELETED){
+			changed = 1;
 			/* remove the host from the list */
 			//remove the host from the host_list of the file
 			/* TODO: need to check if the file really exist in the file_list
@@ -178,5 +251,9 @@ void update_file_list(struct net_info cli_info){
 			}
 			fprintf(stdout, "%s > deleted a file: %s\n", cli_addr, filename);
 		}
+	}
+	if (changed){
+		fprintf(stdout, "%s > file_list after updating:\n", cli_addr);
+		displayFileListFromHost(ntohl(inet_addr(cli_info.ip_add)), cli_info.data_port);
 	}
 }
