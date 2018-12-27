@@ -3,11 +3,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <dirent.h>
+#include <sys/inotify.h>
+#include <unistd.h>
 
 #include "update_file_list.h"
 #include "../common.h"
 #include "../sockio.h"
 
+#define EVENT_SIZE  ( sizeof (struct inotify_event) )
+#define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
 uint16_t dataPort = 0;
 
@@ -146,5 +150,71 @@ void update_file_list(char *dir_name){
 	} else {
 		print_error("opendir");
 		exit(1);
+	}
+	monitor_directory(dir_name, servsock);
+}
+
+void monitor_directory(char *dir, int socketfd){
+	fprintf(stream, "exec monitor_directory\n");
+	/* monitoring continously */
+	int length, i = 0;
+	int inotifyfd;
+	int watch;
+	char buffer[BUF_LEN];
+	inotifyfd = inotify_init();
+	if (inotifyfd < 0){
+		print_error("inotify_init");
+		exit(1);
+	}
+
+	watch = inotify_add_watch(inotifyfd, dir, IN_CREATE | IN_DELETE);
+	if (watch < 0){
+		print_error("inotify_add_watch");
+		exit(1);
+	}
+
+	while (1){
+		struct FileStatus fs[20];
+		uint8_t n_fs = 0;
+
+		length = read(inotifyfd, buffer, BUF_LEN);
+
+		if (length < 0){
+			print_error("inotify_read");
+			continue;
+		}
+		
+		i = 0;
+		while (i < length){
+			struct inotify_event *event = (struct inotify_event*) &buffer[i];
+			if (event->len){
+				if (event->mask & IN_CREATE){
+					if (event->mask & IN_ISDIR){
+						fprintf(stderr, "The directory %s was created.\n", event->name);
+					} else {
+						fprintf(stderr, "The file %s was created.\n", event->name);
+						fs[n_fs].status = FILE_NEW;
+						strcpy(fs[n_fs].filename, event->name);
+						long sz = getFileSize(event->name);
+						if (sz < 0)
+							continue;
+						fs[n_fs].filesize = sz;
+						n_fs ++;
+					}
+				} else if (event->mask & IN_DELETE){
+					if (event->mask & IN_ISDIR){
+						fprintf(stderr, "The directory %s was deleted.\n", event->name);
+					} else {
+						fprintf(stderr, "The file %s was deleted.\n", event->name);
+						fs[n_fs].status = FILE_DELETED;
+						strcpy(fs[n_fs].filename, event->name);
+						fs[n_fs].filesize = 0;
+						n_fs ++;
+					}
+				}
+			}
+			i += EVENT_SIZE + event->len;
+		}
+		send_file_list(socketfd, fs, n_fs);
 	}
 }
