@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <stdio.h>
+#include <dirent.h>
 
 #include "update_file_list.h"
 #include "../common.h"
@@ -25,6 +27,10 @@ void announceDataPort(int sockfd){
 		print_error("send data port to index server");
 		exit(1);
 	}
+}
+
+static void send_file_list(int sockfd, struct FileStatus *fs, uint8_t n_fs){
+	return;
 }
 
 void update_file_list(char *dir_name){
@@ -54,5 +60,40 @@ void update_file_list(char *dir_name){
 	if (connect(servsock, (struct sockaddr*) &servsin, sizeof(servsin)) < 0){
 		print_error("connect");
 		exit(3);
+	}
+
+	//data_port_announcement must be sent first
+	announceDataPort(servsock);
+
+	/* list files in a directory */
+	struct FileStatus fs[20];
+	uint8_t n_fs = 0;
+	DIR *dir;
+	struct dirent *ent;
+	dir = opendir(dir_name);
+	if (dir){
+		while ((ent = readdir(dir)) != NULL){
+			if (ent->d_name[0] == '.')
+				continue;
+			fprintf(stdout, "new file: %s\n", ent->d_name);
+			strcpy(fs[n_fs].filename, ent->d_name);
+			fprintf(stream, "fs[n_fs].filename: %s\n", fs[n_fs].filename);
+			long sz = getFileSize(ent->d_name);
+			fprintf(stream, "filesize: %ld\n", sz);
+			if (sz < 0)
+				continue;
+			fs[n_fs].filesize = sz;
+			fs[n_fs ++].status = FILE_NEW;
+		}
+		closedir(dir);
+
+		if (n_fs > 0)
+			send_file_list(servsock, fs, n_fs);
+		else
+			fprintf(stdout, "Directory %s is empty\n", dir_name);
+		
+	} else {
+		print_error("opendir");
+		exit(1);
 	}
 }

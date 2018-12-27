@@ -3,8 +3,15 @@
 
 #include <stdint.h>
 
+struct FileStatus{
+	char filename[256];
+	uint8_t status;
+	uint32_t filesize;
+};
+
 extern uint16_t dataPort;
 
 void announceDataPort(int sockfd);
+void update_file_list(char *dir_name);
 #endif
 
