@@ -105,7 +105,26 @@ void *serveClient(void *arg){
 	//read packet type first
 	while(readBytes(cli_info.sockfd, &packet_type, sizeof(packet_type)) > 0){
 		if (packet_type == DATA_PORT_ANNOUNCEMENT){
-
+			if (cli_info.data_port != 0){
+				/* only accept DATA_PORT_ANNOUNCEMENT packet once */
+				fprintf(stdout, "%s > only accept DATA_PORT_ANNOUNCEMENT packet once\n", 
+						cli_addr);
+				fprintf(stdout, "removing %s from the file list due to data port violation\n",
+						cli_addr);
+				struct DataHost host;
+				host.ip_addr = inet_addr(cli_info.ip_add);
+				host.port = cli_info.data_port;
+				removeHost(host);
+				close(cli_info.sockfd);
+				int ret = 100;
+				pthread_exit(&ret);
+			}
+			uint16_t data_port;
+			int n_bytes = readBytes(cli_info.sockfd, &data_port, sizeof(data_port));
+			if (n_bytes <= 0)
+				handleSocketError(cli_info, "read from socket");
+			fprintf(stdout, "%s > dataPort: %u\n", cli_addr, ntohs(data_port));
+			cli_info.data_port = ntohs(data_port);
 		} else if (packet_type == FILE_LIST_UPDATE){
 
 		} else if (packet_type == LIST_FILES_REQUEST){
