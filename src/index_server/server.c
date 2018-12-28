@@ -139,7 +139,8 @@ void *serveClient(void *arg){
 			update_file_list(cli_info);
 
 		} else if (packet_type == LIST_FILES_REQUEST){
-			//do something
+			/* process list_files_request, then reponse */
+			process_list_files_request(cli_info);
 		} else if (packet_type == LIST_HOSTS_REQUEST){
 			//do something
 		}

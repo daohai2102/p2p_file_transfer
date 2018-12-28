@@ -257,3 +257,51 @@ void update_file_list(struct net_info cli_info){
 		displayFileListFromHost(ntohl(inet_addr(cli_info.ip_add)), cli_info.data_port);
 	}
 }
+
+void process_list_files_request(struct net_info cli_info){
+	char cli_addr[22];
+	sprintf(cli_addr, "%s:%u", cli_info.ip_add, cli_info.port);
+	fprintf(stream, "%s > list_files_request\n", cli_addr);
+
+	/* TODO: send response header */
+	long n_bytes;
+	n_bytes = writeBytes(cli_info.sockfd, 
+						(void*)&LIST_FILES_RESPONSE, 
+						sizeof(LIST_FILES_RESPONSE));
+	if (n_bytes <= 0){
+		handleSocketError(cli_info, "send LIST_FILES_RESPONSE message");
+	}
+	
+	uint8_t n_files = 0;
+
+	if (file_list == NULL)
+		n_files = 0;
+	else 
+		n_files = file_list->n_nodes;
+
+	n_bytes = writeBytes(cli_info.sockfd, 
+						&n_files, 
+						sizeof(n_files));
+	if (n_bytes <= 0){
+		handleSocketError(cli_info, "send n_files");
+	}
+
+	if (n_files == 0)
+		return;
+
+	struct Node *it = file_list->head;
+	for (; it != NULL; it = it->next){
+		struct FileOwner *file = (struct FileOwner*)it->data;
+		uint16_t filename_length = strlen(file->filename) + 1;
+		filename_length = htons(filename_length);
+		n_bytes = writeBytes(cli_info.sockfd, &filename_length, sizeof(filename_length));
+		if (n_bytes <= 0){
+			handleSocketError(cli_info, "send filename_length");
+		}
+		
+		n_bytes = writeBytes(cli_info.sockfd, file->filename, ntohs(filename_length));
+		if (n_bytes <= 0){
+			handleSocketError(cli_info, "send filename");
+		}
+	}
+}

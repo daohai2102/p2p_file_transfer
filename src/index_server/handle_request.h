@@ -20,5 +20,6 @@ struct net_info{
 void handleSocketError(struct net_info cli_info, char *mess);
 void removeHost(struct DataHost host);
 void update_file_list(struct net_info cli_info);
+void process_list_files_request(struct net_info cli_info);
 
 #endif
