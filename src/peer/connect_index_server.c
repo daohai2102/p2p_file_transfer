@@ -8,6 +8,7 @@
 #include "../sockio.h"
 #include "connect_index_server.h"
 #include "list_files_request.h"
+#include "list_hosts_request.h"
 
 pthread_mutex_t lock_servsock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -56,7 +57,7 @@ void* process_response(void *arg){
 		if (packet_type == LIST_FILES_RESPONSE){
 			process_list_files_response(servsock);
 		} else if (packet_type == LIST_HOSTS_RESPONSE){
-			/* TODO: process list_hosts_response */
+			process_list_hosts_response();
 		}
 		printf("command> ");	//make the console prettier
 		fflush(stdout);
