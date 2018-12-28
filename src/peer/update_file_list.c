@@ -59,7 +59,7 @@ static void send_file_list(int sockfd, struct FileStatus *fs, uint8_t n_fs){
 	//send file list
 	uint8_t i = 0;
 	for (; i < n_fs; ++i){
-		fprintf(stdout, "sending info of \'%s\'\n", fs[i].filename);
+		fprintf(stream, "sending info of \'%s\'\n", fs[i].filename);
 
 		//send file status
 		fprintf(stream, "status: %u\n", fs[i].status);
@@ -115,7 +115,7 @@ void* update_file_list(void *arg){
 		while ((ent = readdir(dir)) != NULL){
 			if (ent->d_name[0] == '.')
 				continue;
-			fprintf(stdout, "new file: %s\n", ent->d_name);
+			fprintf(stream, "new file: %s\n", ent->d_name);
 			strcpy(fs[n_fs].filename, ent->d_name);
 			fprintf(stream, "fs[n_fs].filename: %s\n", fs[n_fs].filename);
 			long sz = getFileSize(ent->d_name);
@@ -130,7 +130,7 @@ void* update_file_list(void *arg){
 		if (n_fs > 0)
 			send_file_list(servsock, fs, n_fs);
 		else
-			fprintf(stdout, "Directory %s is empty\n", dir_name);
+			fprintf(stream, "Directory %s is empty\n", dir_name);
 		
 	} else {
 		print_error("opendir");
@@ -176,9 +176,9 @@ void monitor_directory(char *dir, int socketfd){
 			if (event->len){
 				if (event->mask & IN_CREATE){
 					if (event->mask & IN_ISDIR){
-						fprintf(stderr, "The directory %s was created.\n", event->name);
+						fprintf(stream, "The directory %s was created.\n", event->name);
 					} else {
-						fprintf(stderr, "The file %s was created.\n", event->name);
+						fprintf(stream, "The file %s was created.\n", event->name);
 						fs[n_fs].status = FILE_NEW;
 						strcpy(fs[n_fs].filename, event->name);
 						long sz = getFileSize(event->name);
@@ -189,9 +189,9 @@ void monitor_directory(char *dir, int socketfd){
 					}
 				} else if (event->mask & IN_DELETE){
 					if (event->mask & IN_ISDIR){
-						fprintf(stderr, "The directory %s was deleted.\n", event->name);
+						fprintf(stream, "The directory %s was deleted.\n", event->name);
 					} else {
-						fprintf(stderr, "The file %s was deleted.\n", event->name);
+						fprintf(stream, "The file %s was deleted.\n", event->name);
 						fs[n_fs].status = FILE_DELETED;
 						strcpy(fs[n_fs].filename, event->name);
 						fs[n_fs].filesize = 0;
