@@ -80,19 +80,26 @@ int main(int argc, char **argv){
 		exit(1);
 	}
 
+	printf("command> ");
+
 	while(1){
-		printf("command> ");
-		char command[20];
-		char filename[256];
-		scanf("%s", command);
-		fgets(filename, sizeof(filename), stdin);
-		
+		char input[400];
+		fgets(input, sizeof(input), stdin);
+
+		char *command = strtok(input, " \n\t");
+
+		if (command == NULL){
+			printf("command> ");
+			continue;
+		}
+
 		if (strcmp(command, "ls") == 0){
-			/* TODO: send list_files_request */
 			send_list_files_request();
 		} else if (strcmp(command, "get") == 0){
 			/* TODO: send list_hosts_request */
 		}
+
+		printf("command> ");
 	}
 
 	return 0;

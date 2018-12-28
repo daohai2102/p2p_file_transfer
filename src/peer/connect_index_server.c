@@ -58,6 +58,8 @@ void* process_response(void *arg){
 		} else if (packet_type == LIST_HOSTS_RESPONSE){
 			/* TODO: process list_hosts_response */
 		}
+		printf("command> ");	//make the console prettier
+		fflush(stdout);
 	}
 	return NULL;
 }

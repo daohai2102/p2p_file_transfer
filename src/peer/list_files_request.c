@@ -63,4 +63,5 @@ void process_list_files_response(int servsock){
 		printf("%s\n", delim);
 		printf("%-3u | %-50s\n", i + 1, filename);
 	}
+	printf("\n");
 }
