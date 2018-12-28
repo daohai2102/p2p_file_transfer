@@ -34,6 +34,6 @@ int print_error(char *mess){
 	char err_mess[256];
 	int errnum = errno;
 	strerror_r(errnum, err_mess, sizeof(err_mess));
-	fprintf(stderr, "%s: %s\n", mess, err_mess);
+	fprintf(stderr, "%s [ERROR]: %s\n", mess, err_mess);
 	return errnum;
 }

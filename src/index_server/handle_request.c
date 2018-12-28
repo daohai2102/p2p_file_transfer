@@ -52,7 +52,7 @@ static void displayFileList(){
 	printf("%-4s | %-25s | %-50s | %-15s\n", "No", "Host", "Filename", "Filesize (byte)");
 	pthread_mutex_lock(&lock_file_list);
 	if (file_list == NULL){
-		fprintf(stderr, "file_list == NULL\n");
+		fprintf(stream, "file_list == NULL\n");
 		return;
 	}
 	struct Node *it = file_list->head;
@@ -60,7 +60,7 @@ static void displayFileList(){
 	for (; it != NULL; it = it->next){
 		struct FileOwner *fo = (struct FileOwner*)it->data;
 		if (fo->host_list == NULL){
-			fprintf(stderr, "\'%s\' has fo->host_list == NULL\n", fo->filename);
+			fprintf(stream, "\'%s\' has fo->host_list == NULL\n", fo->filename);
 			continue;
 		}
 		struct Node *it2 = fo->host_list->head;
@@ -114,7 +114,7 @@ void removeHost(struct DataHost host){
 	for (; it != NULL; it = it->next){
 		struct FileOwner *tmp = (struct FileOwner*)it->data;
 		struct Node *host_node = getNodeByHost(tmp->host_list, host);
-		printf("host_node: %p\n", host_node);
+		//printf("host_node: %p\n", host_node);
 		if (host_node){
 			fprintf(stream, "function: removeNode/host\n");
 			removeNode(tmp->host_list, host_node);
@@ -147,7 +147,7 @@ void update_file_list(struct net_info cli_info){
 
 	sprintf(cli_addr, "%s:%u", cli_info.ip_add, cli_info.port);
 
-	fprintf(stderr, "%s > file_list_update\n", cli_addr);
+	fprintf(stream, "%s > file_list_update\n", cli_addr);
 
 	long n_bytes;
 	uint8_t n_files;
@@ -233,7 +233,7 @@ void update_file_list(struct net_info cli_info){
 				push(file_list, file_node);
 			}
 
-			fprintf(stdout, "%s > added a new file: %s\n", 
+			fprintf(stream, "%s > added a new file: %s\n", 
 					cli_addr, filename);
 		} else if (status == FILE_DELETED){
 			changed = 1;
@@ -249,7 +249,7 @@ void update_file_list(struct net_info cli_info){
 			if (file->host_list->n_nodes <= 0){
 				removeNode(file_list, file_node);
 			}
-			fprintf(stdout, "%s > deleted a file: %s\n", cli_addr, filename);
+			fprintf(stream, "%s > deleted a file: %s\n", cli_addr, filename);
 		}
 	}
 	if (changed){
