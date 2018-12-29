@@ -2,6 +2,7 @@
 #define _DATA_STRUCTURE_
 
 #include <stdint.h>
+#include <pthread.h>
 
 #define INSERT_NODE_SUCCESS 1
 #define INSERT_NODE_NOT_IN_LL -2 
@@ -31,6 +32,7 @@ struct Segment{
 
 /* info for each peer that own the data */
 struct DataHost{
+	uint8_t status;
 	uint32_t ip_addr;
 	uint16_t port;			//equal to data_port from the struct net_info
 };
@@ -45,12 +47,16 @@ struct Node{
 struct LinkedList{
 	struct Node *head;
 	struct Node *tail;
-	unsigned int n_nodes;	//number of nodes in the LL
+	uint8_t n_nodes;	//number of nodes in the LL
+	pthread_mutex_t lock_ll;
+	pthread_cond_t cond_ll;
 };
 
 struct Node* newNode(void *data, int data_type);
 
 struct LinkedList* newLinkedList();
+
+struct LinkedList* copyLinkedList(struct LinkedList *srcll);
 
 void destructLinkedList(struct LinkedList *ll);
 

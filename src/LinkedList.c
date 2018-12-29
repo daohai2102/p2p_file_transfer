@@ -34,6 +34,7 @@ struct Node* newNode(void *data, int data_type){
 		{
 			struct DataHost *tmp = malloc(sizeof(struct DataHost));
 			*tmp = *((struct DataHost*)data);
+			tmp->status = 255;
 			newN->data = tmp;
 			newN->type = DATA_HOST_TYPE;
 			break;
@@ -52,7 +53,23 @@ struct LinkedList* newLinkedList(){
 	ll->head = NULL;
 	ll->tail = NULL;
 	ll->n_nodes = 0;
+	ll->lock_ll = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+	ll->cond_ll = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
 	return ll;
+}
+
+struct LinkedList* copyLinkedList(struct LinkedList *srcll){
+	if (srcll == NULL)
+		return NULL;
+
+	struct LinkedList *dstll = newLinkedList();
+	struct Node *it = srcll->head;
+	for (; it != NULL; it = it->next){
+		/* TODO: different route for FILE_OWNER_TYPE due to its LinkedList */
+		struct Node *new_node = newNode(it->data, it->type);
+		push(dstll, new_node);
+	}
+	return dstll;
 }
 
 void destructLinkedList(struct LinkedList *ll){
