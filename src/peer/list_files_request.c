@@ -21,13 +21,24 @@ void send_list_files_request(){
 	pthread_mutex_unlock(&lock_servsock);
 }
 
-void process_list_files_response(int servsock){
+void process_list_files_response(){
 	fprintf(stream, "index server > list_files_response\n");
-	
+
 	long n_bytes = 0;
+	uint8_t packet_type;
+
+	n_bytes = readBytes(servsock, &packet_type, sizeof(packet_type));
+	if (n_bytes <= 0){
+		print_error("[process_list_files_response]read packet header");
+		exit(1);
+	}
+	if (packet_type != LIST_FILES_RESPONSE){
+		fprintf(stderr, "[ERROR] expected LIST_FILES_RESPONSE, received %u\n", packet_type);
+		exit(1);
+	}
 	uint8_t n_files = 0;
 	n_bytes = readBytes(servsock, &n_files, sizeof(n_files));
-	if (n_files <= 0){
+	if (n_bytes <= 0){
 		print_error("index server > read n_files");
 		exit(1);
 	}

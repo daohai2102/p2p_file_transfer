@@ -12,6 +12,7 @@
 #include "connect_index_server.h"
 #include "update_file_list.h"
 #include "list_files_request.h"
+#include "list_hosts_request.h"
 
 
 int main(int argc, char **argv){
@@ -72,13 +73,13 @@ int main(int argc, char **argv){
 	}
 
 	/* listen for and process responses from the index server */
-	pthread_t process_response_tid;
-	thr = pthread_create(&process_response_tid, NULL, &process_response, (void*)&servsock);
-	if (thr != 0){
-		print_error("new thread to process response from the index server");
-		close(servsock);
-		exit(1);
-	}
+	//pthread_t process_response_tid;
+	//thr = pthread_create(&process_response_tid, NULL, &process_response, (void*)&servsock);
+	//if (thr != 0){
+	//	print_error("new thread to process response from the index server");
+	//	close(servsock);
+	//	exit(1);
+	//}
 
 	printf("command> ");
 
@@ -95,8 +96,15 @@ int main(int argc, char **argv){
 
 		if (strcmp(command, "ls") == 0){
 			send_list_files_request();
+			process_list_files_response();
 		} else if (strcmp(command, "get") == 0){
-			/* TODO: send list_hosts_request */
+			char *filename = strtok(NULL, " \n\t");
+			if (access(filename, F_OK) != -1){
+				fprintf(stdout, "\'%s\' existed\n", filename);
+			} else {
+				send_list_hosts_request(filename);
+				process_list_hosts_response();
+			}
 		}
 
 		printf("command> ");
