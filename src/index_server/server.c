@@ -17,6 +17,7 @@
 
 
 void *serveClient(void *arg);
+void close_socket(void *arg);
 
 int main(int argc, char **argv){
 	if (argc > 1){
@@ -90,15 +91,27 @@ int main(int argc, char **argv){
 	close(servsock);
 }
 
+void close_socket(void *arg){
+	int *fd = (int*)arg;
+	close(*fd);
+}
+
 void *serveClient(void *arg){
 	pthread_detach(pthread_self());
 	struct net_info cli_info = *((struct net_info*) arg);
 	free(arg);
+	cli_info.lock_sockfd = malloc(sizeof(pthread_mutex_t));
+	pthread_cleanup_push(free_mem, cli_info.lock_sockfd);
+	*(cli_info.lock_sockfd) = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+	pthread_cleanup_push(close_socket, (void*)&(cli_info.sockfd));
 	char cli_addr[256];
 	sprintf(cli_addr, "%s:%u", cli_info.ip_add, cli_info.port);
 
 	printf("connection from client: %s\n", cli_addr);
 	uint8_t packet_type;
+
+	struct thread_data thrdt;	//use for process_list_hosts_request
+	thrdt.cli_info = cli_info;
 
 	/* receive request from clients,
 	 * then response accordingly */
@@ -142,9 +155,39 @@ void *serveClient(void *arg){
 			/* process list_files_request, then reponse */
 			process_list_files_request(cli_info);
 		} else if (packet_type == LIST_HOSTS_REQUEST){
-			//do something
+			fprintf(stream, "list_hosts_request\n");
+			uint16_t filename_length;
+			long n_bytes = readBytes(thrdt.cli_info.sockfd, 
+									&filename_length, 
+									sizeof(filename_length));
+			if (n_bytes <= 0){
+				handleSocketError(thrdt.cli_info, "[LIST_HOSTS_REQUEST]read filename_length");
+			}
+			filename_length = ntohs(filename_length);
+			fprintf(stream, "filename_length: %u\n", filename_length);
+			if (filename_length <= 0){
+				fprintf(stream, "[LIST_HOSTS_REQUEST]filename_length = 0\n");
+				thrdt.filename[0] = 0;
+				continue;
+			}
+
+			n_bytes = readBytes(thrdt.cli_info.sockfd, thrdt.filename, filename_length);
+			if (n_bytes <= 0){
+				handleSocketError(thrdt.cli_info, "read filename");
+			}
+			fprintf(stream, "filename: %s\n", thrdt.filename);
+			pthread_t tid;
+			fprintf(stream, "create new thread to process list_hosts_request\n");
+			int thr = pthread_create(&tid, NULL, &process_list_hosts_request, &thrdt);
+			if (thr != 0){
+				handleSocketError(cli_info, "create new thread to process list_hosts_request");
+			}
 		}
 	}
 	handleSocketError(cli_info, "read from socket");
+	pthread_cleanup_pop(0);		//close socket
+	close(cli_info.sockfd);
+	pthread_cleanup_pop(0);		//free lock_sockfd
+	free(cli_info.lock_sockfd);
 	return NULL;
 }

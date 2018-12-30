@@ -9,7 +9,7 @@ CFLAGS  = -Wall -pthread
 # the list of header files
 #INCL   = server.h
 #the list of source files
-SRC = handle_request.c  LinkedListUtils.c  server.c ../LinkedList.c ../common.c ../sockio.c
+SRC = handle_request.c  ../LinkedListUtils.c  server.c ../LinkedList.c ../common.c ../sockio.c
 OBJ = $(SRC:.c=.o)
 
 # the build target executable:

@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
+#include <pthread.h>
 #include "common.h"
 
 const uint8_t DATA_PORT_ANNOUNCEMENT = 0;
@@ -36,4 +38,19 @@ int print_error(char *mess){
 	strerror_r(errnum, err_mess, sizeof(err_mess));
 	fprintf(stderr, "%s [ERROR]: %s\n", mess, err_mess);
 	return errnum;
+}
+
+void free_mem(void *arg){
+	if (arg)
+		free(arg);
+}
+
+void mutex_unlock(void *arg){
+	pthread_mutex_t *lock = (pthread_mutex_t*)arg;
+	pthread_mutex_unlock(lock);
+}
+
+void cancel_thread(void *arg){
+	pthread_t tid = *(pthread_t*)arg;
+	pthread_cancel(tid);
 }

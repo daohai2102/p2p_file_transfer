@@ -28,4 +28,10 @@ long getFileSize(char *filename);
 
 int print_error(char *mess);
 
+void free_mem(void *arg);
+
+void mutex_unlock(void *arg);
+
+void cancel_thread(void *arg);
+
 #endif

@@ -48,8 +48,8 @@ struct LinkedList{
 	struct Node *head;
 	struct Node *tail;
 	uint8_t n_nodes;	//number of nodes in the LL
-	pthread_mutex_t lock_ll;
-	pthread_cond_t cond_ll;
+	//pthread_mutex_t lock_ll;
+	//pthread_cond_t cond_ll;
 };
 
 struct Node* newNode(void *data, int data_type);
@@ -58,7 +58,7 @@ struct LinkedList* newLinkedList();
 
 struct LinkedList* copyLinkedList(struct LinkedList *srcll);
 
-void destructLinkedList(struct LinkedList *ll);
+void destructLinkedList(void *arg);
 
 int llistContain(struct LinkedList ll, struct Node *node);
 

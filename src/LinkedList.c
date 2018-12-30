@@ -34,7 +34,6 @@ struct Node* newNode(void *data, int data_type){
 		{
 			struct DataHost *tmp = malloc(sizeof(struct DataHost));
 			*tmp = *((struct DataHost*)data);
-			tmp->status = 255;
 			newN->data = tmp;
 			newN->type = DATA_HOST_TYPE;
 			break;
@@ -53,8 +52,8 @@ struct LinkedList* newLinkedList(){
 	ll->head = NULL;
 	ll->tail = NULL;
 	ll->n_nodes = 0;
-	ll->lock_ll = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-	ll->cond_ll = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+	//ll->lock_ll = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+	//ll->cond_ll = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
 	return ll;
 }
 
@@ -72,7 +71,8 @@ struct LinkedList* copyLinkedList(struct LinkedList *srcll){
 	return dstll;
 }
 
-void destructLinkedList(struct LinkedList *ll){
+void destructLinkedList(void *arg){
+	struct LinkedList *ll = (struct LinkedList*)arg;
 	if (ll->n_nodes == 0){
 		free(ll);
 		return;
