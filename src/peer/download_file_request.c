@@ -161,7 +161,8 @@ void* download_file(void *arg){
 			handle_error(segment, addr_str, "send filename");
 		}
 
-		n_bytes = writeBytes(sockfd, &segment->offset, sizeof(segment->offset));
+		uint32_t offset = htonl(segment->offset);
+		n_bytes = writeBytes(sockfd, &offset, sizeof(offset));
 		if (n_bytes <= 0){
 			handle_error(segment, addr_str, "send offset");
 		}
