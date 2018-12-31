@@ -23,6 +23,7 @@ struct thread_data{
 	struct net_info cli_info;
 	char filename[256];
 	uint32_t filesize;
+	uint8_t seq_no;
 };
 
 void handleSocketError(struct net_info cli_info, char *mess);

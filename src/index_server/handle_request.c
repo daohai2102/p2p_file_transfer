@@ -362,6 +362,14 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	if (n_bytes <= 0){
 		handleSocketError(thrdt->cli_info, "send LIST_HOSTS_RESPONSE message");
 	}
+
+	//send sequence number
+	n_bytes = writeBytes(thrdt->cli_info.sockfd,
+						&thrdt->seq_no,
+						sizeof(thrdt->seq_no));
+	if (n_bytes <= 0){
+		handleSocketError(thrdt->cli_info, "[send_host_list] send sequence number");
+	}
 	
 	//send filename length
 	uint16_t filename_length = strlen(thrdt->filename) + 1;
@@ -443,6 +451,7 @@ void* process_list_hosts_request(void *arg){
 		if (strcmp(filename, thrdt->filename) != 0){
 			pthread_mutex_unlock(&lock_file_list);
 			/* terminate this thread */
+			fprintf(stream, "[process_list_hosts_request] terminate thread due to filename length of 0\n");
 			int ret = 100;
 			pthread_exit(&ret);
 		}

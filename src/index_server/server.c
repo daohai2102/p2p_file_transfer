@@ -156,8 +156,17 @@ void *serveClient(void *arg){
 			process_list_files_request(cli_info);
 		} else if (packet_type == LIST_HOSTS_REQUEST){
 			fprintf(stream, "list_hosts_request\n");
+			uint8_t sequence;
+			long n_bytes;
+			n_bytes = readBytes(thrdt.cli_info.sockfd,
+								&sequence,
+								sizeof(sequence));
+			if (n_bytes <= 0){
+				handleSocketError(thrdt.cli_info, "[LIST_HOSTS_REQUEST]read sequence number");
+			}
+			thrdt.seq_no = sequence;
 			uint16_t filename_length;
-			long n_bytes = readBytes(thrdt.cli_info.sockfd, 
+			n_bytes = readBytes(thrdt.cli_info.sockfd, 
 									&filename_length, 
 									sizeof(filename_length));
 			if (n_bytes <= 0){
