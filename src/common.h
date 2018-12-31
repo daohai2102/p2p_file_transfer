@@ -24,7 +24,7 @@ extern const uint8_t OPENING_FILE_ERROR;
 
 extern FILE *stream;
 
-long getFileSize(char *filename);
+uint32_t getFileSize(char *filename);
 
 int print_error(char *mess);
 

@@ -6,9 +6,9 @@
 
 #define MINIMUM_SEGMENT_SIZE	81920	//80KB
 
-const char tmp_dir[] = "./temp/";
-
+extern const char tmp_dir[];
 extern struct LinkedList *segment_list;
+extern int download_file_done;
 extern pthread_mutex_t lock_segment_list;
 extern pthread_cond_t cond_segment_list;
 

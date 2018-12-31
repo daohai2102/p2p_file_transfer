@@ -1,3 +1,4 @@
+#define _FILE_OFFSET_BITS 64
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -18,7 +19,7 @@ const uint8_t OPENING_FILE_ERROR = 2;
 
 FILE *stream = NULL;
 
-long getFileSize(char *filename){
+uint32_t getFileSize(char *filename){
 	FILE *file = fopen(filename, "rb");
 	char err_mess[256];
 	if (!file){
@@ -26,8 +27,8 @@ long getFileSize(char *filename){
 		fprintf(stderr, "open file %s: %s\n", filename, err_mess);
 		return -1;
 	}
-	fseek(file, 0L, SEEK_END);
-	long sz = ftell(file);
+	fseeko(file, 0, SEEK_END);
+	uint32_t sz = ftello(file);
 	rewind(file);
 	return sz;
 }

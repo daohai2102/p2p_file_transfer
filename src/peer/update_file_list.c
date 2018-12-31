@@ -118,8 +118,8 @@ void* update_file_list(void *arg){
 			fprintf(stream, "new file: %s\n", ent->d_name);
 			strcpy(fs[n_fs].filename, ent->d_name);
 			fprintf(stream, "fs[n_fs].filename: %s\n", fs[n_fs].filename);
-			long sz = getFileSize(ent->d_name);
-			fprintf(stream, "filesize: %ld\n", sz);
+			uint32_t sz = getFileSize(ent->d_name);
+			fprintf(stream, "filesize: %u\n", sz);
 			if (sz < 0)
 				continue;
 			fs[n_fs].filesize = sz;

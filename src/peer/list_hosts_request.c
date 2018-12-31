@@ -16,6 +16,7 @@ pthread_mutex_t lock_the_file = PTHREAD_MUTEX_INITIALIZER;
 
 void send_list_hosts_request(char *filename){
 	pthread_mutex_lock(&lock_servsock);
+	fprintf(stream, "[send_list_hosts_request] filename: \'%s\'\n", filename);
 
 	int n_bytes = writeBytes(servsock, 
 							(void*)&LIST_HOSTS_REQUEST, 
@@ -36,10 +37,12 @@ void send_list_hosts_request(char *filename){
 		exit(1);
 	}
 
-	n_bytes = writeBytes(servsock, filename, ntohs(filename_length));
-	if (n_bytes <= 0){
-		print_error("list_hosts_request > send filename");
-		exit(1);
+	if (filename_length > 0){
+		n_bytes = writeBytes(servsock, filename, ntohs(filename_length));
+		if (n_bytes <= 0){
+			print_error("list_hosts_request > send filename");
+			exit(1);
+		}
 	}
 
 	pthread_mutex_unlock(&lock_servsock);
@@ -160,6 +163,7 @@ void process_list_hosts_response(){
 						free(dthost);
 						continue;
 					}
+					fprintf(stream, "[process_list_hosts_response]created new thread to download file\n");
 				}
 			} else if (status == FILE_DELETED) {
 				struct Node *host_node = getNodeByHost(the_file->host_list, *dthost);

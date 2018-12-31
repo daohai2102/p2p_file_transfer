@@ -14,8 +14,10 @@
 
 
 struct LinkedList *segment_list = NULL;
+int download_file_done = 1;
 pthread_mutex_t lock_segment_list = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_segment_list = PTHREAD_COND_INITIALIZER;
+const char tmp_dir[] = "./.temp/";
 
 static struct Segment* create_segment(){
 	pthread_mutex_lock(&lock_the_file);
@@ -82,6 +84,13 @@ static struct Segment* create_segment(){
 			}
 		}
 	}
+	struct Node *it = segment_list->head;
+	for (; it != NULL; it = it->next){
+		struct Segment *seg = (struct Segment*)(it->data);
+		fprintf(stream, "seg: offset=%u, n_bytes=%u, end=%u, downloading=%d\n",
+				seg->offset, seg->n_bytes, seg->end, seg->downloading);
+	}
+	
 	pthread_cleanup_pop(0);
 	pthread_mutex_unlock(&lock_segment_list);
 	return segment;
@@ -247,7 +256,7 @@ int download_done(){
 		if (done)
 			break;
 	}
-	/* send done message to index server */
+	/* send "done" message to index server */
 	send_list_hosts_request("");
 
 	/* destruct the_file and segment_list */
@@ -255,7 +264,11 @@ int download_done(){
 	char full_name[400];
 	strcpy(full_name, tmp_dir);
 	strcat(full_name, the_file->filename);
-	rename(full_name, the_file->filename);
+	int ren = rename(full_name, the_file->filename);
+	if (ren < 0){
+		print_error("move file");
+		exit(1);
+	}
 	destructLinkedList(the_file);
 	the_file = NULL;
 	pthread_mutex_unlock(&lock_the_file);
