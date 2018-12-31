@@ -8,6 +8,7 @@
 #include "../sockio.h"
 #include "../LinkedListUtils.h"
 #include "connect_index_server.h"
+#include "download_file_request.h"
 
 struct FileOwner *the_file = NULL;
 pthread_mutex_t lock_the_file = PTHREAD_MUTEX_INITIALIZER;
@@ -23,7 +24,10 @@ void send_list_hosts_request(char *filename){
 		print_error("send LIST_HOSTS_REQUEST to index server");
 		exit(1);
 	}
-	uint16_t filename_length = strlen(filename) + 1;
+	uint16_t filename_length = strlen(filename);
+	if (filename_length != 0){
+		filename_length += 1;
+	}
 	filename_length = htons(filename_length);
 
 	n_bytes = writeBytes(servsock, &filename_length, sizeof(filename_length));
@@ -63,103 +67,103 @@ static void display_host_list(){
 
 void process_list_hosts_response(){
 	fprintf(stream, "exec process_list_hosts_response\n");
-	if (!the_file){
-		fprintf(stream, "create the_file\n");
-		the_file = malloc(sizeof(struct FileOwner));
-		the_file->host_list = newLinkedList();
-		/* TODO: start downloading file */
-	}
 
 	long n_bytes;
-	uint8_t packet_type;
-	while(1){
-		n_bytes = readBytes(servsock, &packet_type, sizeof(packet_type));
-		if (n_bytes <= 0){
-			print_error("[process_list_hosts_response]read message header");
-			exit(1);
-		}
-		if (packet_type != LIST_HOSTS_RESPONSE){
-			fprintf(stderr, "[process_list_hosts_response] expected LIST_HOSTS_RESPONSE, received %u\n", packet_type);
-			exit(1);
-		}
-		uint16_t filename_length;
-		n_bytes = readBytes(servsock, &filename_length, sizeof(filename_length));
-		if (n_bytes <= 0){
-			print_error("[process_list_hosts_response]read filename_length");
-			exit(1);
-		}
-		filename_length = ntohs(filename_length);
-		fprintf(stream, "[process_list_hosts_response]filename_length: %u\n", filename_length);
 
-		char filename[256];
-		n_bytes = readBytes(servsock, filename, filename_length);
-		if (n_bytes <= 0){
-			print_error("[process_list_hosts_response]read filename");
-			exit(1);
-		}
-		fprintf(stream, "[process_list_hosts_response]filename: %s\n", filename);
-		
-		uint32_t filesize;
-		n_bytes = readBytes(servsock, &filesize, sizeof(filesize));
-		if (n_bytes <= 0){
-			print_error("process_list_hosts_response > read filesize");
-			exit(1);
-		}
-		
-		filesize = ntohl(filesize);
-		fprintf(stream, "[process_list_hosts_response]filesize: %u\n", filesize);
+	uint16_t filename_length;
+	n_bytes = readBytes(servsock, &filename_length, sizeof(filename_length));
+	if (n_bytes <= 0){
+		print_error("[process_list_hosts_response]read filename_length");
+		exit(1);
+	}
+	filename_length = ntohs(filename_length);
+	fprintf(stream, "[process_list_hosts_response]filename_length: %u\n", filename_length);
+
+	char filename[256];
+	n_bytes = readBytes(servsock, filename, filename_length);
+	if (n_bytes <= 0){
+		print_error("[process_list_hosts_response]read filename");
+		exit(1);
+	}
+	fprintf(stream, "[process_list_hosts_response]filename: %s\n", filename);
+	
+	uint32_t filesize;
+	n_bytes = readBytes(servsock, &filesize, sizeof(filesize));
+	if (n_bytes <= 0){
+		print_error("process_list_hosts_response > read filesize");
+		exit(1);
+	}
+	filesize = ntohl(filesize);
+	fprintf(stream, "[process_list_hosts_response]filesize: %u\n", filesize);
+
+	int download_done = 1;
+	if (the_file && strcmp(filename, the_file->filename) == 0){
+		download_done = 0;
+	}
+
+	if (!download_done)
 		the_file->filesize = filesize;
-		
-		uint8_t n_hosts;
-		n_bytes = readBytes(servsock, &n_hosts, sizeof(n_hosts));
+
+	pthread_mutex_lock(&lock_the_file);
+	
+	uint8_t n_hosts;
+	n_bytes = readBytes(servsock, &n_hosts, sizeof(n_hosts));
+	if (n_bytes <= 0){
+		print_error("[process_list_hosts_response]read n_hosts");
+		exit(1);
+	}
+	fprintf(stream, "[process_list_hosts_response]n_hosts: %u\n", n_hosts);
+
+	uint8_t i = 0;
+	for (; i < n_hosts; i++){
+		uint8_t status;
+		n_bytes = readBytes(servsock, &status, sizeof(status));
 		if (n_bytes <= 0){
-			print_error("[process_list_hosts_response]read n_hosts");
+			print_error("process_list_hosts_response > read status");
 			exit(1);
 		}
-		fprintf(stream, "[process_list_hosts_response]n_hosts: %u\n", n_hosts);
-
-		uint8_t i = 0;
-		for (; i < n_hosts; i++){
-			uint8_t status;
-			n_bytes = readBytes(servsock, &status, sizeof(status));
-			if (n_bytes <= 0){
-				print_error("process_list_hosts_response > read status");
-				exit(1);
-			}
-			fprintf(stream, "[process_list_hosts_response]status: %u\n", status);
-			
-			uint32_t ip_addr;
-			n_bytes = readBytes(servsock, &ip_addr, sizeof(ip_addr));
-			if (n_bytes <= 0){
-				print_error("process_list_hosts_response > read ip address");
-				exit(1);
-			}
-			ip_addr = ntohl(ip_addr);
-			fprintf(stream, "[process_list_hosts_response]ip_addr: %u\n", ip_addr);
-			
-			uint16_t data_port;
-			n_bytes = readBytes(servsock, &data_port, sizeof(data_port));
-			if (n_bytes <= 0){
-				print_error("process_list_hosts_response > read data port");
-				exit(1);
-			}
-			data_port = ntohs(data_port);
-			fprintf(stream, "[process_list_hosts_response]data_port: %u\n", data_port);
-			
-			struct DataHost dthost;
-			dthost.ip_addr = ip_addr;
-			dthost.port = data_port;
-
+		fprintf(stream, "[process_list_hosts_response]status: %u\n", status);
+		
+		uint32_t ip_addr;
+		n_bytes = readBytes(servsock, &ip_addr, sizeof(ip_addr));
+		if (n_bytes <= 0){
+			print_error("process_list_hosts_response > read ip address");
+			exit(1);
+		}
+		ip_addr = ntohl(ip_addr);
+		fprintf(stream, "[process_list_hosts_response]ip_addr: %u\n", ip_addr);
+		
+		uint16_t data_port;
+		n_bytes = readBytes(servsock, &data_port, sizeof(data_port));
+		if (n_bytes <= 0){
+			print_error("process_list_hosts_response > read data port");
+			exit(1);
+		}
+		data_port = ntohs(data_port);
+		fprintf(stream, "[process_list_hosts_response]data_port: %u\n", data_port);
+		
+		if (!download_done){
+			struct DataHost *dthost = malloc(sizeof(struct DataHost));
+			dthost->ip_addr = ip_addr;
+			dthost->port = data_port;
 			if (status == FILE_NEW){
-				fprintf(stream, "[process_list_hosts_response]new host, add to the list\n");
-				struct Node *host_node = newNode(&dthost, DATA_HOST_TYPE);
-				pthread_mutex_lock(&lock_the_file);
-				push(the_file->host_list, host_node);
-				//pthread_cond_signal(&cond_the_file);
-				pthread_mutex_unlock(&lock_the_file);
-				/* TODO: create new thread to download file */
+				struct Node *host_node = getNodeByHost(the_file->host_list, *dthost);
+				if (!host_node){
+					fprintf(stream, "[process_list_hosts_response]new host, add to the list\n");
+					host_node = newNode(dthost, DATA_HOST_TYPE);
+					push(the_file->host_list, host_node);
+					/* create new thread to download file */
+					pthread_t tid;
+					int thr = pthread_create(&tid, NULL, &download_file, dthost);
+					if (thr != 0){
+						fprintf(stream, "cannot create new thread to download file\n");
+						free(dthost);
+						continue;
+					}
+				}
 			} else if (status == FILE_DELETED) {
-				struct Node *host_node = getNodeByHost(the_file->host_list, dthost);
+				struct Node *host_node = getNodeByHost(the_file->host_list, *dthost);
+				free(dthost);
 				if (host_node){
 					removeNode(the_file->host_list, host_node);
 					fprintf(stream, "[process_list_hosts_response]host removed\n");
@@ -168,9 +172,10 @@ void process_list_hosts_response(){
 				}
 			}
 		}
-
-		display_host_list();
-		/* TODO: check if the file has been downloaded successfully,
-		 * break the while loop */
 	}
+
+	pthread_mutex_unlock(&lock_the_file);
+
+	if (!download_done)
+		display_host_list();
 }

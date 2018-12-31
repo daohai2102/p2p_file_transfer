@@ -7,12 +7,15 @@
 #include <stdint.h>
 #include <signal.h>
 #include <pthread.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "../common.h"
 #include "connect_index_server.h"
 #include "update_file_list.h"
 #include "list_files_request.h"
 #include "list_hosts_request.h"
+#include "download_file_request.h"
 
 
 int main(int argc, char **argv){
@@ -73,13 +76,15 @@ int main(int argc, char **argv){
 	}
 
 	/* listen for and process responses from the index server */
-	//pthread_t process_response_tid;
-	//thr = pthread_create(&process_response_tid, NULL, &process_response, (void*)&servsock);
-	//if (thr != 0){
-	//	print_error("new thread to process response from the index server");
-	//	close(servsock);
-	//	exit(1);
-	//}
+	pthread_t process_response_tid;
+	thr = pthread_create(&process_response_tid, NULL, &process_response, (void*)&servsock);
+	if (thr != 0){
+		print_error("new thread to process response from the index server");
+		close(servsock);
+		exit(1);
+	}
+
+	mkdir(tmp_dir, 0700);
 
 	printf("command> ");
 
@@ -96,14 +101,25 @@ int main(int argc, char **argv){
 
 		if (strcmp(command, "ls") == 0){
 			send_list_files_request();
-			process_list_files_response();
 		} else if (strcmp(command, "get") == 0){
 			char *filename = strtok(NULL, " \n\t");
 			if (access(filename, F_OK) != -1){
 				fprintf(stdout, "\'%s\' existed\n", filename);
 			} else {
+				pthread_mutex_lock(&lock_the_file);
+				the_file = malloc(sizeof(struct FileOwner));
+				the_file->host_list = newLinkedList();
+				strcpy(the_file->filename, filename);
+				the_file->filesize = 0;
+				pthread_mutex_unlock(&lock_the_file);
+
+				segment_list = newLinkedList();
+
 				send_list_hosts_request(filename);
-				process_list_hosts_response();
+
+				if (download_done()){
+					fprintf(stdout, "\'%s\' received successfully\n", filename);
+				}
 			}
 		}
 

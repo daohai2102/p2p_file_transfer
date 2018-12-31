@@ -56,12 +56,12 @@ void* process_response(void *arg){
 	while (readBytes(servsock, &packet_type, sizeof(packet_type)) > 0){
 		if (packet_type == LIST_FILES_RESPONSE){
 			process_list_files_response(servsock);
+			printf("command> ");	//make the console prettier
+			fflush(stdout);
 		} else if (packet_type == LIST_HOSTS_RESPONSE){
 			fprintf(stream, "list_hosts_response\n");
 			process_list_hosts_response();
 		}
-		printf("command> ");	//make the console prettier
-		fflush(stdout);
 	}
 	return NULL;
 }

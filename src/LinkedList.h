@@ -27,6 +27,9 @@ struct FileOwner{
 struct Segment{
 	uint32_t offset;
 	uint32_t n_bytes;
+	uint32_t end;
+	pthread_mutex_t lock_seg;
+	int downloading;
 };
 
 
