@@ -11,6 +11,7 @@
 #include "download_file_request.h"
 
 struct FileOwner *the_file = NULL;
+uint8_t seq_no = 0;
 pthread_mutex_t lock_the_file = PTHREAD_MUTEX_INITIALIZER;
 //pthread_cond_t cond_the_file = PTHREAD_COND_INITIALIZER;
 
@@ -25,6 +26,15 @@ void send_list_hosts_request(char *filename){
 		print_error("send LIST_HOSTS_REQUEST to index server");
 		exit(1);
 	}
+
+	pthread_mutex_lock(&lock_the_file);
+	n_bytes = writeBytes(servsock, &seq_no, sizeof(seq_no));
+	if (n_bytes <= 0){
+		print_error("[send_list_hosts_request] send sequence number");
+		exit(1);
+	}
+	pthread_mutex_unlock(&lock_the_file);
+
 	uint16_t filename_length = strlen(filename);
 	if (filename_length != 0){
 		filename_length += 1;
@@ -73,6 +83,13 @@ void process_list_hosts_response(){
 
 	long n_bytes;
 
+	uint8_t sequence;
+	n_bytes = readBytes(servsock, &sequence, sizeof(sequence));
+	if (n_bytes <= 0){
+		print_error("[process_list_hosts_response] read sequence number");
+		exit(1);
+	}
+
 	uint16_t filename_length;
 	n_bytes = readBytes(servsock, &filename_length, sizeof(filename_length));
 	if (n_bytes <= 0){
@@ -99,15 +116,9 @@ void process_list_hosts_response(){
 	filesize = ntohl(filesize);
 	fprintf(stream, "[process_list_hosts_response]filesize: %u\n", filesize);
 
-	int download_done = 1;
-	if (the_file && strcmp(filename, the_file->filename) == 0){
-		download_done = 0;
-	}
-
-	if (!download_done)
-		the_file->filesize = filesize;
-
 	pthread_mutex_lock(&lock_the_file);
+	if (sequence == seq_no)
+		the_file->filesize = filesize;
 	
 	uint8_t n_hosts;
 	n_bytes = readBytes(servsock, &n_hosts, sizeof(n_hosts));
@@ -145,7 +156,7 @@ void process_list_hosts_response(){
 		data_port = ntohs(data_port);
 		fprintf(stream, "[process_list_hosts_response]data_port: %u\n", data_port);
 		
-		if (!download_done){
+		if (sequence == seq_no){
 			struct DataHost *dthost = malloc(sizeof(struct DataHost));
 			dthost->ip_addr = ip_addr;
 			dthost->port = data_port;
@@ -180,6 +191,6 @@ void process_list_hosts_response(){
 
 	pthread_mutex_unlock(&lock_the_file);
 
-	if (!download_done)
+	if (sequence == seq_no)
 		display_host_list();
 }
