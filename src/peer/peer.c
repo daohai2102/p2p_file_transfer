@@ -16,6 +16,7 @@
 #include "list_files_request.h"
 #include "list_hosts_request.h"
 #include "download_file_request.h"
+#include "handle_download_file_request.h"
 
 
 int main(int argc, char **argv){
@@ -66,10 +67,18 @@ int main(int argc, char **argv){
 	dataPort = real_sock_in.sin_port;	//network byte order
 	//fprintf(stream, "main > dataPort: %u\n", ntohs(dataPort));
 	
+	/* listen for download file request */
+	pthread_t download_tid;
+	int thr = pthread_create(&download_tid, NULL, waitForDownloadRequest, &dataSock);
+	if (thr != 0){
+		print_error("new thread to handle download file request");
+		exit(1);
+	}
+	
 	connect_to_index_server();
 
 	pthread_t tid;
-	int thr = pthread_create(&tid, NULL, &update_file_list, "./");
+	thr = pthread_create(&tid, NULL, &update_file_list, "./");
 	if (thr != 0){
 		print_error("new thread to update file list to the index server");
 		exit(1);
