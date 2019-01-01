@@ -21,16 +21,18 @@ int connect_to_index_server(){
 
 	servsin.sin_family = AF_INET;
 
-	char *servip;
-	char buf[22];
-	printf("Enter server's IP addr and port in the form of <IP>:<port>\n");
-	scanf("%s", buf);
+	char servip[16];
+	uint16_t index_port;
+	printf("Enter index server's address:\n");
+	printf("\tIP:   ");
+	scanf("%s", servip);
+	printf("\tPort: ");
+	scanf("%hu", &index_port);
 	getchar();	/* remove '\n' character from the stdin */
 
 	/* parse the buf to get ip address and port */
-	servip = strtok(buf, ":");
 	servsin.sin_addr.s_addr = inet_addr(servip);
-	servsin.sin_port = htons(atoi(strtok(NULL, ":")));
+	servsin.sin_port = htons(index_port);
 
 	int servsocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (servsocket < 0){

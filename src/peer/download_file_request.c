@@ -34,16 +34,16 @@ static void display_segment_list(){
 	memset(short_delim, '#', 32);
 	short_delim[32] = 0;
 
-	fprintf(stream, "%s segment list %s\n", short_delim, short_delim);
+	fprintf(stderr, "%s segment list %s\n", short_delim, short_delim);
 	int max_width = 10;
 	struct Node *it = segment_list->head;
 	for (; it != NULL; it = it->next){
 		struct Segment *seg = (struct Segment*)(it->data);
-		fprintf(stream, "seg: offset=%*u, n_bytes=%*u, seg_size=%*u, downloading=%d\n",
+		fprintf(stderr, "seg: offset=%*u, n_bytes=%*u, seg_size=%*u, downloading=%d\n",
 				max_width, seg->offset, max_width, seg->n_bytes, 
 				max_width, seg->seg_size, seg->downloading);
 	}
-	fprintf(stream, "%s\n", long_delim);
+	fprintf(stderr, "%s\n", long_delim);
 }
 
 static void prepare_segment(struct Segment *seg, 
@@ -319,8 +319,8 @@ void* download_file(void *arg){
 					//fclose(bak);
 					close(filefd);
 					segment->downloading = 0;
-					fprintf(stdout, "%-22s > segment offset %*u done, n_bytes=%*u\n", 
-							addr_str, 10, segment->offset, 10, segment->n_bytes);
+					fprintf(stdout, "%s > segment offset %u done, n_bytes=%u\n", 
+							addr_str, segment->offset, segment->n_bytes);
 					pthread_mutex_unlock(&segment->lock_seg);
 					break;
 				}

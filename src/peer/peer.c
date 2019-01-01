@@ -78,6 +78,8 @@ int main(int argc, char **argv){
 	
 	connect_to_index_server();
 
+	printf("Listening for download_file_request at: 0.0.0.0:%u\n", dataPort);
+
 	pthread_t tid;
 	thr = pthread_create(&tid, NULL, &update_file_list, "./");
 	if (thr != 0){
@@ -121,6 +123,8 @@ int main(int argc, char **argv){
 			} else {
 				printf("help: rm <filename>\n");
 			}
+			printf("command> ");
+			fflush(stdout);
 		} else if (strcmp(command, "get") == 0){
 			char *filename = strtok(NULL, " \n\t");
 			if (filename){
@@ -150,12 +154,12 @@ int main(int argc, char **argv){
 			} else {
 				printf("help: get <filename>\n");
 			}
+			printf("command> ");
+			fflush(stdout);
 		} else if (strcmp(command, EXIT_CMD) == 0){
 			return 0;
 		}
 
-		printf("command> ");
-		fflush(stdout);
 	}
 
 	return 0;
