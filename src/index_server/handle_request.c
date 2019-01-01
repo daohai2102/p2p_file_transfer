@@ -209,14 +209,17 @@ void update_file_list(struct net_info cli_info){
 		host.ip_addr = ntohl(inet_addr(cli_info.ip_add));
 		host.port = cli_info.data_port;
 
+		pthread_mutex_lock(&lock_file_list);
+		pthread_cleanup_push(mutex_unlock, &lock_file_list);
 		if (status == FILE_NEW){
+			fprintf(stream, "[update_file_list] %s > new file \'%s\'", cli_addr, filename);
 			changed = 1;
 			/* add the host to the list */
 			struct Node *host_node = newNode(&host, DATA_HOST_TYPE);
 
+			fprintf(stream, "[update_file_list] adding host\n");
+
 			//check if the file has already been in the list
-			pthread_mutex_lock(&lock_file_list);
-			pthread_cleanup_push(mutex_unlock, &lock_file_list);
 			if (llContainFile(file_list, filename)){
 				fprintf(stream, "\'%s\' existed, add host to the list\n", filename);
 				/* insert the host into the host_list of the file
@@ -226,8 +229,9 @@ void update_file_list(struct net_info cli_info){
 				struct Node *node = getNodeByFilename(file_list, filename);
 				struct FileOwner *file = (struct FileOwner*)node->data;
 
-				/* TODO: need to check if the host already existed */
-				push(file->host_list, host_node);
+				/* need to check if the host already existed */
+				if (!llContainHost(file->host_list, host))
+					push(file->host_list, host_node);
 			} else {
 				fprintf(stream, "add \'%s\' to file_list, add host to host_list\n", filename);
 				//create a new node to store file's info
@@ -245,27 +249,31 @@ void update_file_list(struct net_info cli_info){
 				push(file_list, file_node);
 			}
 			pthread_cond_broadcast(&cond_file_list);
-			pthread_cleanup_pop(0);
-			pthread_mutex_unlock(&lock_file_list);
 
 			fprintf(stream, "%s > added a new file: %s\n", 
 					cli_addr, filename);
 		} else if (status == FILE_DELETED){
+			fprintf(stream, "[update_file_list] %s > \'%s\' deleted\n", cli_addr, filename);
 			changed = 1;
 			/* remove the host from the list */
 			//remove the host from the host_list of the file
-			/* TODO: need to check if the file really exist in the file_list
-			 * TODO: need to check if the host really exist in the host_list of the file */
+			/* need to check if the file really exist in the file_list
+			 * need to check if the host really exist in the host_list of the file */
 			struct Node *file_node = getNodeByFilename(file_list, filename);
-			struct FileOwner *file = (struct FileOwner*)(file_node->data);
-			struct Node *host_node = getNodeByHost(file->host_list, host);
-			removeNode(file->host_list, host_node);
-			/* if the host_list is empty, also remove the file from file_list */
-			if (file->host_list->n_nodes <= 0){
-				removeNode(file_list, file_node);
+			if (file_node){
+				struct FileOwner *file = (struct FileOwner*)(file_node->data);
+				struct Node *host_node = getNodeByHost(file->host_list, host);
+				if (host_node)
+					removeNode(file->host_list, host_node);
+				/* if the host_list is empty, also remove the file from file_list */
+				if (file->host_list->n_nodes <= 0){
+					removeNode(file_list, file_node);
+				}
+				fprintf(stream, "%s > deleted a file: %s\n", cli_addr, filename);
 			}
-			fprintf(stream, "%s > deleted a file: %s\n", cli_addr, filename);
 		}
+		pthread_cleanup_pop(0);
+		pthread_mutex_unlock(&lock_file_list);
 	}
 	if (changed){
 		fprintf(stdout, "%s > file_list after updating:\n", cli_addr);
@@ -348,10 +356,6 @@ void process_list_files_request(struct net_info cli_info){
 
 static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hosts){
 	fprintf(stream, "execute send_host_list\n");
-	if (chg_hosts->n_nodes <= 0){
-		fprintf(stream, "[send_host_list]no hosts\n");
-		return;
-	}
 	pthread_mutex_lock(thrdt->cli_info.lock_sockfd);
 	pthread_cleanup_push(mutex_unlock, thrdt->cli_info.lock_sockfd);
 	
@@ -373,7 +377,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	
 	//send filename length
 	uint16_t filename_length = strlen(thrdt->filename) + 1;
-	fprintf(stream, "[send_host_list]filename_length: %u\n", filename_length);
+	fprintf(stream, "[send_host_list]send filename_length: %u\n", filename_length);
 	filename_length = htons(filename_length);
 
 	n_bytes = writeBytes(thrdt->cli_info.sockfd, &filename_length, sizeof(filename_length));
@@ -382,14 +386,14 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	}
 	
 	//send filename
-	fprintf(stream, "[send_host_list]filename: %s\n", thrdt->filename);
+	fprintf(stream, "[send_host_list] send filename: %s\n", thrdt->filename);
 	n_bytes = writeBytes(thrdt->cli_info.sockfd, thrdt->filename, ntohs(filename_length));
 	if (n_bytes <= 0){
 		handleSocketError(thrdt->cli_info, "send filename");
 	}
 
 	//send filesize
-	fprintf(stream, "[send_host_list]filesize: %u\n", thrdt->filesize);
+	fprintf(stream, "[send_host_list] send filesize: %u\n", thrdt->filesize);
 	uint32_t filesize = htonl(thrdt->filesize);
 	n_bytes = writeBytes(thrdt->cli_info.sockfd, &filesize, sizeof(filesize));
 	if (n_bytes <= 0){
