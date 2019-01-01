@@ -360,6 +360,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	pthread_cleanup_push(mutex_unlock, thrdt->cli_info.lock_sockfd);
 	
 	//send header
+	fprintf(stream, "[send_host_list] send LIST_HOSTS_RESPONSE\n");
 	long n_bytes = writeBytes(thrdt->cli_info.sockfd, 
 							(void*)&LIST_HOSTS_RESPONSE, 
 							sizeof(LIST_HOSTS_RESPONSE));
@@ -368,6 +369,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	}
 
 	//send sequence number
+	fprintf(stream, "[send_host_list] send sequence number\n");
 	n_bytes = writeBytes(thrdt->cli_info.sockfd,
 						&thrdt->seq_no,
 						sizeof(thrdt->seq_no));
@@ -401,6 +403,20 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	}
 
 	//send n_hosts
+	if (chg_hosts == NULL){
+		uint8_t n_nodes = 0;
+		fprintf(stream, "[send_host_list]n_hosts: %u\n", n_nodes);
+
+		n_bytes = writeBytes(thrdt->cli_info.sockfd, 
+							&(n_nodes), 
+							sizeof(n_nodes));
+		if (n_bytes <= 0){
+			handleSocketError(thrdt->cli_info, "send n_hosts");
+		}
+		pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
+		return;
+	}
+
 	fprintf(stream, "[send_host_list]n_hosts: %u\n", chg_hosts->n_nodes);
 	n_bytes = writeBytes(thrdt->cli_info.sockfd, 
 						&(chg_hosts->n_nodes), 
@@ -413,12 +429,14 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	for (; it != NULL; it = it->next){
 		struct DataHost *host = (struct DataHost*)(it->data);
 		//send status
+		fprintf(stream, "[send_host_list] send status: %u\n", host->status);
 		n_bytes = writeBytes(thrdt->cli_info.sockfd, &(host->status), sizeof(host->status));
 		if (n_bytes <= 0){
 			handleSocketError(thrdt->cli_info, "send status");
 		}
 
 		//send ip
+		fprintf(stream, "[send_host_list] send ip: %u\n", host->ip_addr);
 		uint32_t ip_addr = htonl(host->ip_addr);
 		n_bytes = writeBytes(thrdt->cli_info.sockfd, &ip_addr, sizeof(ip_addr));
 		if (n_bytes <= 0){
@@ -426,6 +444,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 		}
 
 		//send data port
+		fprintf(stream, "[send_host_list] send data port: %u\n", host->port);
 		uint16_t data_port = htons(host->port);
 		n_bytes = writeBytes(thrdt->cli_info.sockfd, &data_port, sizeof(data_port));
 		if (n_bytes <= 0){
@@ -442,6 +461,17 @@ void* process_list_hosts_request(void *arg){
 	struct thread_data *thrdt = (struct thread_data*)arg;
 	char filename[256];
 	strcpy(filename, thrdt->filename);
+
+	struct Node *file_node = NULL;
+	
+	pthread_mutex_lock(&lock_file_list);
+	file_node = getNodeByFilename(file_list, thrdt->filename);
+	pthread_mutex_unlock(&lock_file_list);
+	if (!file_node){
+		send_host_list(thrdt, NULL);
+		return NULL;
+	}
+
 	//the old host list, use to compare with the new host list
 	//to detect the changed hosts
 	struct LinkedList *old_ll = newLinkedList();
@@ -459,7 +489,7 @@ void* process_list_hosts_request(void *arg){
 			int ret = 100;
 			pthread_exit(&ret);
 		}
-		struct Node *file_node = getNodeByFilename(file_list, thrdt->filename);
+		file_node = getNodeByFilename(file_list, thrdt->filename);
 		if (file_node){
 			/* there is at least 1 host that contains the file */
 			chg_hosts = newLinkedList();
