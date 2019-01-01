@@ -146,10 +146,18 @@ int main(int argc, char **argv){
 					n_threads = 0;
 					pthread_mutex_unlock(&lock_n_threads);
 
+					struct timespec begin, end;
+					clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
+
 					send_list_hosts_request(filename);
 
 					download_done();
 
+					clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+
+					long duration = (end.tv_sec - begin.tv_sec)*1e3
+									+ (end.tv_nsec - begin.tv_nsec)/1e6;
+					printf("Elapsed time: %ld nanoseconds\n", duration);
 				}
 			} else {
 				printf("help: get <filename>\n");
