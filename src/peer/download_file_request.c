@@ -21,6 +21,19 @@ pthread_mutex_t lock_segment_list = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_segment_list = PTHREAD_COND_INITIALIZER;
 const char tmp_dir[] = "./.temp/";
 
+static void prepare_segment(struct Segment *seg, 
+							uint32_t offset, 
+							uint32_t size, 
+							uint32_t n_bytes, 
+							uint32_t downloading)
+{
+	seg->offset = offset;
+	seg->seg_size = size;
+	seg->n_bytes = n_bytes;
+	seg->downloading = downloading;
+	pthread_mutex_init(&seg->lock_seg, NULL);
+}
+
 static struct Segment* create_segment(uint8_t sequence){
 	pthread_mutex_lock(&lock_the_file);
 	if (sequence != seq_no){
@@ -40,22 +53,14 @@ static struct Segment* create_segment(uint8_t sequence){
 		free(seg);
 		seg = (struct Segment*)(seg_node->data);
 		segment = seg;
-		seg->downloading = 1;
-		pthread_mutex_init(&seg->lock_seg, NULL);
-		seg->n_bytes = 0;
-		seg->offset = 0;
-		seg->end = filesize;
+		prepare_segment(seg, 0, filesize, 0, 1);
 		push(segment_list, seg_node);
 
 		seg = malloc(sizeof(struct Segment));
 		seg_node = newNode(seg, SEGMENT_TYPE);
 		free(seg);
 		seg = (struct Segment*)(seg_node->data);
-		seg->downloading = 0;
-		pthread_mutex_init(&seg->lock_seg, NULL);
-		seg->n_bytes = 0;
-		seg->offset = filesize;
-		seg->end = filesize;
+		prepare_segment(seg, filesize, 0, 0, 0);
 		push(segment_list, seg_node);
 	} else {
 		struct Node *it = segment_list->head;
@@ -63,8 +68,20 @@ static struct Segment* create_segment(uint8_t sequence){
 			struct Segment *seg1 = (struct Segment*)(it->data);
 
 			pthread_mutex_lock(&seg1->lock_seg);
-			if (seg1->downloading == 0 && (seg1->offset + seg1->n_bytes) < seg1->end){
-				segment = seg1;
+			if (seg1->downloading == 0 && seg1->n_bytes < seg1->seg_size){
+				if (seg1->n_bytes == 0){
+					segment = seg1;
+					segment->downloading = 1;
+				} else {
+					struct Node *seg_node = newNode(seg1, SEGMENT_TYPE);
+					segment = (struct Segment*)(seg_node->data);
+					prepare_segment(segment, seg1->offset + seg1->n_bytes, 
+									seg1->seg_size - seg1->n_bytes,
+									0, 1);
+					pthread_mutex_init(&segment->lock_seg, NULL);
+					seg1->seg_size = seg1->n_bytes;
+					insertNode(segment_list, seg_node, it);
+				}
 				pthread_mutex_unlock(&seg1->lock_seg);
 				break;
 			}
@@ -77,13 +94,13 @@ static struct Segment* create_segment(uint8_t sequence){
 			if (interval >= 2*MINIMUM_SEGMENT_SIZE){
 				struct Node *seg_node = newNode(seg1, SEGMENT_TYPE);
 				segment = (struct Segment*)(seg_node->data);
-				segment->downloading = 1;
-				segment->n_bytes = 0;
-				segment->offset = (seg2->offset + seg1->offset + seg1->n_bytes)/2;
-				pthread_mutex_init(&segment->lock_seg, NULL);
-				segment->end = seg2->offset;
+				//avoid being over range value of uint32_t
+				uint64_t new_offset = ((uint64_t)seg2->offset
+									+ (uint64_t)seg1->offset 
+									+ (uint64_t)seg1->n_bytes)/2;
+				prepare_segment(segment, new_offset, interval/2, 0, 1);
 				insertNode(segment_list, seg_node, it);
-				seg1->end = segment->offset;
+				seg1->seg_size = segment->offset - seg1->offset;
 			}
 			pthread_mutex_unlock(&seg2->lock_seg);
 			pthread_mutex_unlock(&seg1->lock_seg);
@@ -92,12 +109,16 @@ static struct Segment* create_segment(uint8_t sequence){
 			}
 		}
 	}
+	fprintf(stream, "######## segment list #################################\n");
+	int max_width = 10;
 	struct Node *it = segment_list->head;
 	for (; it != NULL; it = it->next){
 		struct Segment *seg = (struct Segment*)(it->data);
-		fprintf(stream, "seg: offset=%u, n_bytes=%u, end=%u, downloading=%d\n",
-				seg->offset, seg->n_bytes, seg->end, seg->downloading);
+		fprintf(stream, "seg: offset=%*u, n_bytes=%*u, seg_size=%*u, downloading=%d\n",
+				max_width, seg->offset, max_width, seg->n_bytes, 
+				max_width, seg->seg_size, seg->downloading);
 	}
+	fprintf(stream, "#######################################################\n");
 	
 	pthread_cleanup_pop(0);
 	pthread_mutex_unlock(&lock_segment_list);
@@ -139,7 +160,7 @@ static int connect_peer(struct DataHost dthost, char *addr_str){
 	if (conn < 0)
 		return conn;
 
-	fprintf(stdout, "connected to %s\n", addr_str);
+	//fprintf(stdout, "connected to %s\n", addr_str);
 	return sockfd;
 }
 
@@ -173,14 +194,14 @@ void* download_file(void *arg){
 				pthread_cond_signal(&cond_segment_list);
 				pthread_mutex_unlock(&lock_segment_list);
 			}
-			fprintf(stream, "[download_file]terminate thread\n");
+			fprintf(stream, "[download_file] terminate thread\n");
 			terminate_thread(segment);
 		}
 		int sockfd = connect_peer(dinfo.dthost, addr_str);
 		if (sockfd < 0){
-			handle_error(segment, addr_str, "connect to download\n");
+			handle_error(segment, addr_str, "connect to download");
 		}
-		fprintf(stream, "%s > segment offset: %u\n", addr_str, segment->offset);
+		fprintf(stdout, "%s > segment offset: %u\n", addr_str, segment->offset);
 
 		/* send download file request */
 		uint32_t n_bytes = 0;
@@ -230,9 +251,9 @@ void* download_file(void *arg){
 			}
 
 
-			fprintf(stream, "[download_file] lseek to %u\n", segment->offset);
-			uint32_t pos = lseek(filefd, segment->offset, SEEK_SET);
-			fprintf(stream, "[download_file] pos after lseeking: %u\n", pos);
+			//fprintf(stream, "[download_file] lseek to %u\n", segment->offset);
+			lseek(filefd, segment->offset, SEEK_SET);
+			//fprintf(stream, "[download_file] pos after lseeking: %u\n", pos);
 			//FILE *file = fopen(full_name, "wb");
 			//if (file == NULL){
 			//	fprintf(stderr, "%s > [download_file] cannot open file", the_file->filename);
@@ -242,26 +263,23 @@ void* download_file(void *arg){
 			//fseeko(file, segment->offset, SEEK_SET);
 			//fprintf(stream, "[download_file] position after fseeking: %u\n", (uint32_t)ftello(file));
 
-			//char bak_name[256];
-			//sprintf(bak_name, "%s%u", tmp_dir, segment->offset);
-			//FILE *bak = fopen(bak_name, "wb");
-
 			while (1){
 				n_bytes = read(sockfd, buff, sizeof(buff));
 				if (n_bytes <= 0){
 					close(filefd);
 					//fclose(file);
 					//fclose(bak);
-					handle_error(segment, addr_str, "read data");
+					print_error("[download_file] read data");
+					pthread_mutex_lock(&segment->lock_seg);
+					segment->downloading = 0;
+					pthread_mutex_unlock(&segment->lock_seg);
+					break;
 				}
 				pthread_mutex_lock(&segment->lock_seg);
-				uint32_t remain = segment->end - (segment->offset + segment->n_bytes);
+				uint32_t remain = segment->seg_size - segment->n_bytes;
 				n_bytes = (remain < n_bytes) ? remain : n_bytes;
 				n_write = write(filefd, buff, n_bytes);
 				//fwrite(buff, 1, n_bytes, bak);
-				if (n_write != n_bytes){
-					fprintf(stream, "%s > n_write=%u, n_bytes=%u\n", addr_str,n_write, n_bytes);
-				}
 				segment->n_bytes += n_write;
 				if (n_write < 0){
 					/* error */
@@ -273,14 +291,14 @@ void* download_file(void *arg){
 					pthread_mutex_unlock(&segment->lock_seg);
 					handle_error(segment, addr_str, "write to file");
 				}
-				if (segment->offset + segment->n_bytes == segment->end){
+				if (segment->n_bytes >= segment->seg_size){
 					/* got enough data */
 					//fclose(file);
 					//fclose(bak);
 					close(filefd);
 					segment->downloading = 0;
-					fprintf(stream, "%s > segment offset %u done, n_bytes=%u\n", 
-							addr_str, segment->offset, segment->n_bytes);
+					fprintf(stdout, "%-22s > segment offset %*u done, n_bytes=%*u\n", 
+							addr_str, 10, segment->offset, 10, segment->n_bytes);
 					pthread_mutex_unlock(&segment->lock_seg);
 					break;
 				}
@@ -306,7 +324,7 @@ int download_done(){
 		int done = 1;
 		for (; it != segment_list->tail; it = it->next){
 			struct Segment *seg = (struct Segment*)(it->data);
-			if (seg->downloading || seg->end != (seg->offset + seg->n_bytes)){
+			if (seg->downloading || seg->n_bytes < seg->seg_size){
 				done = 0;
 				break;
 			}

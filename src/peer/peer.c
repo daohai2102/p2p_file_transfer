@@ -132,6 +132,7 @@ int main(int argc, char **argv){
 		}
 
 		printf("command> ");
+		fflush(stdout);
 	}
 
 	return 0;
