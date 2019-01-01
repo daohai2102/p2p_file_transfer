@@ -46,6 +46,7 @@ static void displayFileListFromHost(uint32_t ip_addr, uint16_t port){
 			}
 		}
 	}
+	printf("\n");
 	pthread_cleanup_pop(0);
 	pthread_mutex_unlock(&lock_file_list);
 	printf("\n");
@@ -82,6 +83,7 @@ static void displayFileList(){
 			printf("%-4d | %-25s | %-50s | %-15u\n", k, host, fo->filename, fo->filesize);
 		}
 	}
+	printf("\n");
 	pthread_cleanup_pop(0);
 	pthread_mutex_unlock(&lock_file_list);
 	printf("\n");
@@ -104,7 +106,7 @@ void handleSocketError(struct net_info cli_info, char *mess){
 	fprintf(stderr, "connection from %s:%u closed\n", cli_info.ip_add, cli_info.port);
 
 	/* display file list */
-	fprintf(stdout, "File list after removing the host: \n");
+	fprintf(stdout, "Full file list after removing the host: \n");
 	displayFileList();
 
 	int ret = 100;
@@ -276,8 +278,10 @@ void update_file_list(struct net_info cli_info){
 		pthread_mutex_unlock(&lock_file_list);
 	}
 	if (changed){
-		fprintf(stdout, "%s > file_list after updating:\n", cli_addr);
+		fprintf(stdout, "%s > file list from this host:\n", cli_addr);
 		displayFileListFromHost(ntohl(inet_addr(cli_info.ip_add)), cli_info.data_port);
+		fprintf(stdout, "Full file list:\n");
+		displayFileList();
 	}
 
 	//pthread_cleanup_pop(1);
