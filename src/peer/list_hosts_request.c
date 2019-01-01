@@ -191,6 +191,7 @@ void process_list_hosts_response(){
 							pthread_mutex_unlock(&lock_n_threads);
 							continue;
 						}
+						n_threads ++;
 						fprintf(stream, "[process_list_hosts_response]created new thread to download file\n");
 					}
 					pthread_mutex_unlock(&lock_n_threads);

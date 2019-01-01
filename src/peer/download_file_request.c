@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 
 #include "download_file_request.h"
 #include "list_hosts_request.h"
@@ -142,13 +143,16 @@ static struct Segment* create_segment(uint8_t sequence){
 static void terminate_thread(struct Segment *seg){
 	if (seg){
 		pthread_mutex_lock(&seg->lock_seg);
+		fprintf(stream, "[terminate_thread] complete segment\n");
 		seg->downloading = 0;
 		pthread_mutex_unlock(&seg->lock_seg);
 	}
 	pthread_mutex_lock(&lock_n_threads);
+	fprintf(stream, "[terminate_thread] decrease n_threads\n");
 	n_threads --;
 	pthread_cond_signal(&cond_n_threads);
 	pthread_mutex_unlock(&lock_n_threads);
+	fprintf(stream, "[terminate_thread] decreased n_threads\n");
 	int ret = 100;
 	pthread_exit(&ret);
 }
@@ -352,14 +356,29 @@ int download_done(){
 			break;
 	}
 
+	//while(1){
+	//	pthread_cond_wait(&cond_n_threads, &lock_n_threads);
+	//	fprintf(stream, "n_threads: %d\n", n_threads);
+	//	if (n_threads <= 0){
+	//		n_threads = -1;
+	//		pthread_mutex_unlock(&lock_n_threads);
+	//		break;
+	//	}
+	//	pthread_mutex_unlock(&lock_n_threads);
+	//}
+
+	struct timespec req;
+	req.tv_nsec = 100000000;
+	req.tv_sec = 0;
 	while(1){
-		pthread_cond_wait(&cond_n_threads, &lock_n_threads);
+		pthread_mutex_lock(&lock_n_threads);
 		if (n_threads <= 0){
 			n_threads = -1;
 			pthread_mutex_unlock(&lock_n_threads);
 			break;
 		}
 		pthread_mutex_unlock(&lock_n_threads);
+		nanosleep(&req, NULL);
 	}
 
 	pthread_mutex_lock(&lock_the_file);
