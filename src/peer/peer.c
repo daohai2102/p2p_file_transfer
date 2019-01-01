@@ -111,30 +111,44 @@ int main(int argc, char **argv){
 
 		if (strcmp(command, "ls") == 0){
 			send_list_files_request();
+		} else if (strcmp(command, "rm") == 0) {
+			char *filename = strtok(NULL, " \n\t");
+			if (filename){
+				int ret = remove(filename);
+				if (ret != 0){
+					print_error("remove file");
+				}
+			} else {
+				printf("help: rm <filename>\n");
+			}
 		} else if (strcmp(command, "get") == 0){
 			char *filename = strtok(NULL, " \n\t");
-			if (access(filename, F_OK) != -1){
-				fprintf(stdout, "\'%s\' existed\n", filename);
+			if (filename){
+				if (access(filename, F_OK) != -1){
+					fprintf(stdout, "\'%s\' existed\n", filename);
+				} else {
+					pthread_mutex_lock(&lock_the_file);
+					the_file = malloc(sizeof(struct FileOwner));
+					the_file->host_list = newLinkedList();
+					strcpy(the_file->filename, filename);
+					the_file->filesize = 0;
+					pthread_mutex_unlock(&lock_the_file);
+
+					pthread_mutex_lock(&lock_segment_list);
+					segment_list = newLinkedList();
+					pthread_mutex_unlock(&lock_segment_list);
+
+					pthread_mutex_lock(&lock_n_threads);
+					n_threads = 0;
+					pthread_mutex_unlock(&lock_n_threads);
+
+					send_list_hosts_request(filename);
+
+					download_done();
+
+				}
 			} else {
-				pthread_mutex_lock(&lock_the_file);
-				the_file = malloc(sizeof(struct FileOwner));
-				the_file->host_list = newLinkedList();
-				strcpy(the_file->filename, filename);
-				the_file->filesize = 0;
-				pthread_mutex_unlock(&lock_the_file);
-
-				pthread_mutex_lock(&lock_segment_list);
-				segment_list = newLinkedList();
-				pthread_mutex_unlock(&lock_segment_list);
-
-				pthread_mutex_lock(&lock_n_threads);
-				n_threads = 0;
-				pthread_mutex_unlock(&lock_n_threads);
-
-				send_list_hosts_request(filename);
-
-				download_done();
-
+				printf("help: get <filename>\n");
 			}
 		} else if (strcmp(command, EXIT_CMD) == 0){
 			return 0;
