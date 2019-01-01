@@ -461,6 +461,7 @@ void* process_list_hosts_request(void *arg){
 	struct thread_data *thrdt = (struct thread_data*)arg;
 	char filename[256];
 	strcpy(filename, thrdt->filename);
+	uint8_t sequence = thrdt->seq_no;
 
 	struct Node *file_node = NULL;
 	
@@ -482,10 +483,10 @@ void* process_list_hosts_request(void *arg){
 
 	while(1){
 		/* client request a new file */
-		if (strcmp(filename, thrdt->filename) != 0){
+		if (sequence != thrdt->seq_no){
 			pthread_mutex_unlock(&lock_file_list);
 			/* terminate this thread */
-			fprintf(stream, "[process_list_hosts_request] terminate thread due to filename length of 0\n");
+			fprintf(stream, "[process_list_hosts_request] terminate thread due to the difference of sequence number\n");
 			int ret = 100;
 			pthread_exit(&ret);
 		}
