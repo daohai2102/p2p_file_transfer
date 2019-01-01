@@ -181,14 +181,19 @@ void process_list_hosts_response(){
 					host_node = newNode(&dinfo->dthost, DATA_HOST_TYPE);
 					push(the_file->host_list, host_node);
 					/* create new thread to download file */
-					pthread_t tid;
-					int thr = pthread_create(&tid, NULL, &download_file, dinfo);
-					if (thr != 0){
-						fprintf(stream, "cannot create new thread to download file\n");
-						free(dinfo);
-						continue;
+					pthread_mutex_lock(&lock_n_threads);
+					if (n_threads >= 0){
+						pthread_t tid;
+						int thr = pthread_create(&tid, NULL, &download_file, dinfo);
+						if (thr != 0){
+							fprintf(stream, "cannot create new thread to download file\n");
+							free(dinfo);
+							pthread_mutex_unlock(&lock_n_threads);
+							continue;
+						}
+						fprintf(stream, "[process_list_hosts_response]created new thread to download file\n");
 					}
-					fprintf(stream, "[process_list_hosts_response]created new thread to download file\n");
+					pthread_mutex_unlock(&lock_n_threads);
 				}
 			} else if (status == FILE_DELETED) {
 				struct Node *host_node = getNodeByHost(the_file->host_list, dinfo->dthost);

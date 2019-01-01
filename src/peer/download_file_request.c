@@ -19,7 +19,31 @@
 struct LinkedList *segment_list = NULL;
 pthread_mutex_t lock_segment_list = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_segment_list = PTHREAD_COND_INITIALIZER;
+int n_threads = 0;
+pthread_mutex_t lock_n_threads = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond_n_threads = PTHREAD_COND_INITIALIZER;
 const char tmp_dir[] = "./.temp/";
+
+static void display_segment_list(){
+	char long_delim[79];
+	memset(long_delim, '#', 78);
+	long_delim[78] = 0;
+
+	char short_delim[33];
+	memset(short_delim, '#', 32);
+	short_delim[32] = 0;
+
+	fprintf(stream, "%s segment list %s\n", short_delim, short_delim);
+	int max_width = 10;
+	struct Node *it = segment_list->head;
+	for (; it != NULL; it = it->next){
+		struct Segment *seg = (struct Segment*)(it->data);
+		fprintf(stream, "seg: offset=%*u, n_bytes=%*u, seg_size=%*u, downloading=%d\n",
+				max_width, seg->offset, max_width, seg->n_bytes, 
+				max_width, seg->seg_size, seg->downloading);
+	}
+	fprintf(stream, "%s\n", long_delim);
+}
 
 static void prepare_segment(struct Segment *seg, 
 							uint32_t offset, 
@@ -109,17 +133,7 @@ static struct Segment* create_segment(uint8_t sequence){
 			}
 		}
 	}
-	fprintf(stream, "######## segment list #################################\n");
-	int max_width = 10;
-	struct Node *it = segment_list->head;
-	for (; it != NULL; it = it->next){
-		struct Segment *seg = (struct Segment*)(it->data);
-		fprintf(stream, "seg: offset=%*u, n_bytes=%*u, seg_size=%*u, downloading=%d\n",
-				max_width, seg->offset, max_width, seg->n_bytes, 
-				max_width, seg->seg_size, seg->downloading);
-	}
-	fprintf(stream, "#######################################################\n");
-	
+	display_segment_list();
 	pthread_cleanup_pop(0);
 	pthread_mutex_unlock(&lock_segment_list);
 	return segment;
@@ -131,6 +145,10 @@ static void terminate_thread(struct Segment *seg){
 		seg->downloading = 0;
 		pthread_mutex_unlock(&seg->lock_seg);
 	}
+	pthread_mutex_lock(&lock_n_threads);
+	n_threads --;
+	pthread_cond_signal(&cond_n_threads);
+	pthread_mutex_unlock(&lock_n_threads);
 	int ret = 100;
 	pthread_exit(&ret);
 }
@@ -166,7 +184,7 @@ static int connect_peer(struct DataHost dthost, char *addr_str){
 
 void* download_file(void *arg){
 	fprintf(stream, "function download_file\n");
-	pthread_detach(pthread_self());
+	//pthread_detach(pthread_self());
 	struct DownloadInfo dinfo = *(struct DownloadInfo*)arg;
 	free(arg);
 
@@ -332,6 +350,16 @@ int download_done(){
 		pthread_mutex_unlock(&lock_segment_list);
 		if (done)
 			break;
+	}
+
+	while(1){
+		pthread_cond_wait(&cond_n_threads, &lock_n_threads);
+		if (n_threads <= 0){
+			n_threads = -1;
+			pthread_mutex_unlock(&lock_n_threads);
+			break;
+		}
+		pthread_mutex_unlock(&lock_n_threads);
 	}
 
 	pthread_mutex_lock(&lock_the_file);

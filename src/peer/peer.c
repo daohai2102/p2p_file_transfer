@@ -18,6 +18,7 @@
 #include "download_file_request.h"
 #include "handle_download_file_request.h"
 
+const char EXIT_CMD[] = "exit";
 
 int main(int argc, char **argv){
 	if (argc > 1){
@@ -122,13 +123,21 @@ int main(int argc, char **argv){
 				the_file->filesize = 0;
 				pthread_mutex_unlock(&lock_the_file);
 
+				pthread_mutex_lock(&lock_segment_list);
 				segment_list = newLinkedList();
+				pthread_mutex_unlock(&lock_segment_list);
+
+				pthread_mutex_lock(&lock_n_threads);
+				n_threads = 0;
+				pthread_mutex_unlock(&lock_n_threads);
 
 				send_list_hosts_request(filename);
 
 				download_done();
 
 			}
+		} else if (strcmp(command, EXIT_CMD) == 0){
+			return 0;
 		}
 
 		printf("command> ");

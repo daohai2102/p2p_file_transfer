@@ -38,6 +38,14 @@ struct Node* newNode(void *data, int data_type){
 			newN->type = DATA_HOST_TYPE;
 			break;
 		}
+		case PTHREAD_T_TYPE:
+		{
+			pthread_t *tmp = malloc(sizeof(pthread_t));
+			*tmp = *((pthread_t*)data);
+			newN->data = tmp;
+			newN->type = PTHREAD_T_TYPE;
+			break;
+		}
 		default:
 			fprintf(stderr, "newNode: unknown data type\b");
 			free(newN);
