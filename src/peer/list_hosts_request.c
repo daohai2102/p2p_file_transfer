@@ -31,6 +31,7 @@ void send_list_hosts_request(char *filename){
 	n_bytes = writeBytes(servsock, &seq_no, sizeof(seq_no));
 	if (n_bytes <= 0){
 		print_error("[send_list_hosts_request] send sequence number");
+		pthread_mutex_unlock(&lock_the_file);
 		exit(1);
 	}
 	pthread_mutex_unlock(&lock_the_file);
@@ -89,6 +90,8 @@ void process_list_hosts_response(){
 		print_error("[process_list_hosts_response] read sequence number");
 		exit(1);
 	}
+	fprintf(stream, "[process_list_hosts_response] received seq_no: %u\n", sequence);
+
 
 	uint16_t filename_length;
 	n_bytes = readBytes(servsock, &filename_length, sizeof(filename_length));
@@ -124,9 +127,19 @@ void process_list_hosts_response(){
 	n_bytes = readBytes(servsock, &n_hosts, sizeof(n_hosts));
 	if (n_bytes <= 0){
 		print_error("[process_list_hosts_response]read n_hosts");
+		pthread_mutex_unlock(&lock_the_file);
 		exit(1);
 	}
 	fprintf(stream, "[process_list_hosts_response]n_hosts: %u\n", n_hosts);
+
+	if (n_hosts == 0 && sequence == seq_no){
+		/* file not found */
+		pthread_mutex_lock(&lock_segment_list);
+		pthread_cond_signal(&cond_segment_list);
+		pthread_mutex_unlock(&lock_segment_list);
+		pthread_mutex_unlock(&lock_the_file);
+		return;
+	}
 
 	uint8_t i = 0;
 	for (; i < n_hosts; i++){
@@ -157,28 +170,29 @@ void process_list_hosts_response(){
 		fprintf(stream, "[process_list_hosts_response]data_port: %u\n", data_port);
 		
 		if (sequence == seq_no){
-			struct DataHost *dthost = malloc(sizeof(struct DataHost));
-			dthost->ip_addr = ip_addr;
-			dthost->port = data_port;
+			struct DownloadInfo *dinfo = malloc(sizeof(struct DownloadInfo));
+			dinfo->dthost.ip_addr = ip_addr;
+			dinfo->dthost.port = data_port;
+			dinfo->seq_no = sequence;
 			if (status == FILE_NEW){
-				struct Node *host_node = getNodeByHost(the_file->host_list, *dthost);
+				struct Node *host_node = getNodeByHost(the_file->host_list, dinfo->dthost);
 				if (!host_node){
 					fprintf(stream, "[process_list_hosts_response]new host, add to the list\n");
-					host_node = newNode(dthost, DATA_HOST_TYPE);
+					host_node = newNode(&dinfo->dthost, DATA_HOST_TYPE);
 					push(the_file->host_list, host_node);
 					/* create new thread to download file */
 					pthread_t tid;
-					int thr = pthread_create(&tid, NULL, &download_file, dthost);
+					int thr = pthread_create(&tid, NULL, &download_file, dinfo);
 					if (thr != 0){
 						fprintf(stream, "cannot create new thread to download file\n");
-						free(dthost);
+						free(dinfo);
 						continue;
 					}
 					fprintf(stream, "[process_list_hosts_response]created new thread to download file\n");
 				}
 			} else if (status == FILE_DELETED) {
-				struct Node *host_node = getNodeByHost(the_file->host_list, *dthost);
-				free(dthost);
+				struct Node *host_node = getNodeByHost(the_file->host_list, dinfo->dthost);
+				free(dinfo);
 				if (host_node){
 					removeNode(the_file->host_list, host_node);
 					fprintf(stream, "[process_list_hosts_response]host removed\n");
