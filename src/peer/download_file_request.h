@@ -12,6 +12,11 @@ extern int download_file_done;
 extern pthread_mutex_t lock_segment_list;
 extern pthread_cond_t cond_segment_list;
 
+struct DownloadInfo{
+	struct DataHost dthost;
+	uint8_t seq_no;
+};
+
 void* download_file(void *arg);
 
 int download_done();

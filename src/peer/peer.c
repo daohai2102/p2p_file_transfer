@@ -126,9 +126,8 @@ int main(int argc, char **argv){
 
 				send_list_hosts_request(filename);
 
-				if (download_done()){
-					fprintf(stdout, "\'%s\' received successfully\n", filename);
-				}
+				download_done();
+
 			}
 		}
 
