@@ -153,7 +153,7 @@ void monitor_directory(char *dir, int socketfd){
 		exit(1);
 	}
 
-	watch = inotify_add_watch(inotifyfd, dir, IN_CREATE | IN_DELETE);
+	watch = inotify_add_watch(inotifyfd, dir, IN_CREATE | IN_DELETE | IN_MOVED_TO);
 	if (watch < 0){
 		print_error("inotify_add_watch");
 		exit(1);
@@ -174,20 +174,20 @@ void monitor_directory(char *dir, int socketfd){
 		while (i < length){
 			struct inotify_event *event = (struct inotify_event*) &buffer[i];
 			if (event->len){
-				if (event->mask & IN_CREATE){
+				if (event->mask & IN_CREATE || event->mask & IN_MOVED_TO){
 					if (event->mask & IN_ISDIR){
 						fprintf(stream, "The directory %s was created.\n", event->name);
 					} else {
 						fprintf(stream, "The file %s was created.\n", event->name);
 						fs[n_fs].status = FILE_NEW;
 						strcpy(fs[n_fs].filename, event->name);
-						long sz = getFileSize(event->name);
+						uint32_t sz = getFileSize(event->name);
 						if (sz < 0)
 							continue;
 						fs[n_fs].filesize = sz;
 						n_fs ++;
 					}
-				} else if (event->mask & IN_DELETE){
+				} else if (event->mask & IN_DELETE || event->mask & IN_MOVED_FROM){
 					if (event->mask & IN_ISDIR){
 						fprintf(stream, "The directory %s was deleted.\n", event->name);
 					} else {
