@@ -9,12 +9,14 @@
 #include "update_file_list.h"
 #include "../common.h"
 #include "../sockio.h"
+#include "../LinkedList.h"
 #include "connect_index_server.h"
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
 uint16_t dataPort = 0;
+struct LinkedList *monitor_files = NULL;
 
 void announceDataPort(int sockfd){
 	/* mutex lock the socket to avoid intersection of multiple messages 
@@ -140,9 +142,26 @@ void* update_file_list(void *arg){
 	return NULL;
 }
 
+struct Node* getNode(struct LinkedList *ll, char *filename){
+	if (!ll || !filename)
+		return NULL;
+	
+	struct Node *it = ll->head;
+	for (; it != NULL; it = it->next){
+		char *name = (char*)it->data;
+		if (strcmp(name, filename) == 0)
+			return it;
+	}
+
+	return NULL;
+}
+
 void monitor_directory(char *dir, int socketfd){
 	fprintf(stream, "exec monitor_directory\n");
 	/* monitoring continously */
+	if (monitor_files == NULL){
+		monitor_files = newLinkedList();
+	}
 	int length, i = 0;
 	int inotifyfd;
 	int watch;
@@ -153,7 +172,7 @@ void monitor_directory(char *dir, int socketfd){
 		exit(1);
 	}
 
-	watch = inotify_add_watch(inotifyfd, dir, IN_CREATE | IN_DELETE | IN_MOVED_TO);
+	watch = inotify_add_watch(inotifyfd, dir, IN_CREATE | IN_DELETE | IN_MOVED_TO | IN_CLOSE_WRITE);
 	if (watch < 0){
 		print_error("inotify_add_watch");
 		exit(1);
@@ -174,10 +193,12 @@ void monitor_directory(char *dir, int socketfd){
 		while (i < length){
 			struct inotify_event *event = (struct inotify_event*) &buffer[i];
 			if (event->len){
-				if (event->mask & IN_CREATE || event->mask & IN_MOVED_TO){
-					if (event->mask & IN_ISDIR){
-						fprintf(stream, "The directory %s was created.\n", event->name);
-					} else {
+				if (!(event->mask & IN_ISDIR)){
+					if (event->mask & IN_CREATE){
+						printf("IN_CREATE: %s\n", event->name);
+						struct Node *file_node = newNode(event->name, STRING_TYPE);
+						push(monitor_files, file_node);
+					} else if (event->mask & IN_MOVED_TO){
 						fprintf(stream, "The file %s was created.\n", event->name);
 						fs[n_fs].status = FILE_NEW;
 						strcpy(fs[n_fs].filename, event->name);
@@ -186,11 +207,23 @@ void monitor_directory(char *dir, int socketfd){
 							continue;
 						fs[n_fs].filesize = sz;
 						n_fs ++;
-					}
-				} else if (event->mask & IN_DELETE || event->mask & IN_MOVED_FROM){
-					if (event->mask & IN_ISDIR){
-						fprintf(stream, "The directory %s was deleted.\n", event->name);
-					} else {
+					} else if (event->mask & IN_CLOSE_WRITE){
+						printf("IN_CLOSE_WRITE: %s\n", event->name);
+						struct Node *file_node = getNode(monitor_files, event->name);
+						if (file_node){
+							fprintf(stream, "The file %s was created.\n", event->name);
+							fs[n_fs].status = FILE_NEW;
+							strcpy(fs[n_fs].filename, event->name);
+							uint32_t sz = getFileSize(event->name);
+							printf("filesize: %u\n", sz);
+							if (sz < 0)
+								continue;
+							fs[n_fs].filesize = sz;
+							n_fs ++;
+							printf("n_fs: %d\n", n_fs);
+							removeNode(monitor_files, file_node);
+						}
+					} else if (event->mask & IN_DELETE || event->mask & IN_MOVED_FROM){
 						fprintf(stream, "The file %s was deleted.\n", event->name);
 						fs[n_fs].status = FILE_DELETED;
 						strcpy(fs[n_fs].filename, event->name);

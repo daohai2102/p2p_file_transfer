@@ -17,6 +17,7 @@
 #define FILE_OWNER_TYPE 2
 #define DATA_HOST_TYPE 3
 #define PTHREAD_T_TYPE 4
+#define STRING_TYPE 5
 
 struct FileOwner{
 	char filename[256];

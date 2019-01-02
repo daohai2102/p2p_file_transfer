@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <netinet/in.h>
+#include <string.h>
 #include "LinkedList.h"
 
 struct Node* newNode(void *data, int data_type){
@@ -44,6 +45,15 @@ struct Node* newNode(void *data, int data_type){
 			*tmp = *((pthread_t*)data);
 			newN->data = tmp;
 			newN->type = PTHREAD_T_TYPE;
+			break;
+		}
+		case STRING_TYPE:
+		{
+			char *input = (char*)data;
+			char *tmp = malloc(strlen(input) + 1);
+			strcpy(tmp, input);
+			newN->data = tmp;
+			newN->type = STRING_TYPE;
 			break;
 		}
 		default:
