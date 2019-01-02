@@ -16,9 +16,9 @@ pthread_mutex_t lock_file_list = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_file_list = PTHREAD_COND_INITIALIZER;
 
 static void displayFileListFromHost(uint32_t ip_addr, uint16_t port){
-	printf("%-4s | %-25s | %-50s | %-15s\n", "No", "Host", "Filename", "Filesize (byte)");
 	pthread_mutex_lock(&lock_file_list);
 	pthread_cleanup_push(mutex_unlock, &lock_file_list);
+	printf("%-4s | %-25s | %-50s | %-15s\n", "No", "Host", "Filename", "Filesize (byte)");
 	struct Node *it = file_list->head;
 	int k = 0;
 	for (; it != NULL; it = it->next){
@@ -53,13 +53,10 @@ static void displayFileListFromHost(uint32_t ip_addr, uint16_t port){
 }
 
 static void displayFileList(){
-	printf("%-4s | %-25s | %-50s | %-15s\n", "No", "Host", "Filename", "Filesize (byte)");
 	pthread_mutex_lock(&lock_file_list);
 	pthread_cleanup_push(mutex_unlock, &lock_file_list);
-	if (file_list == NULL){
-		fprintf(stream, "file_list == NULL\n");
-		return;
-	}
+	printf("%-4s | %-25s | %-50s | %-15s\n", "No", "Host", "Filename", "Filesize (byte)");
+
 	struct Node *it = file_list->head;
 	int k = 0;
 	for (; it != NULL; it = it->next){
@@ -149,9 +146,11 @@ void removeHost(struct DataHost host){
 }
 
 void update_file_list(struct net_info cli_info){
+	pthread_mutex_lock(&lock_file_list);
 	if (! file_list){
 		file_list = newLinkedList();
 	}
+	pthread_mutex_unlock(&lock_file_list);
 
 	//pthread_cleanup_push(mutex_unlock, &lock_file_list);
 	//pthread_cleanup_push(mutex_unlock, cli_info.lock_sockfd);
@@ -190,7 +189,7 @@ void update_file_list(struct net_info cli_info){
 		fprintf(stream, "%s > filename_length: %u\n", cli_addr, filename_length);
 
 		//filename
-		char *filename = malloc(filename_length);
+		char filename[256];
 		n_bytes = readBytes(cli_info.sockfd, filename, filename_length);
 		if (n_bytes <= 0){
 			handleSocketError(cli_info, "read filename from socket"); 
@@ -222,14 +221,14 @@ void update_file_list(struct net_info cli_info){
 			fprintf(stream, "[update_file_list] adding host\n");
 
 			//check if the file has already been in the list
-			if (llContainFile(file_list, filename)){
+			struct Node *file_node = getNodeByFilename(file_list, filename);
+			if (file_node){
 				fprintf(stream, "\'%s\' existed, add host to the list\n", filename);
 				/* insert the host into the host_list of the file
 				 */
 
 				//get the node which contains the file in the file_list
-				struct Node *node = getNodeByFilename(file_list, filename);
-				struct FileOwner *file = (struct FileOwner*)node->data;
+				struct FileOwner *file = (struct FileOwner*)file_node->data;
 
 				/* need to check if the host already existed */
 				if (!llContainHost(file->host_list, host))
@@ -247,10 +246,10 @@ void update_file_list(struct net_info cli_info){
 				push(new_file.host_list, host_node);
 				fprintf(stream, "%s > new_file->host_list->head: %p\n", 
 						cli_addr, new_file.host_list->head);
-				struct Node *file_node = newNode(&new_file, FILE_OWNER_TYPE);
+				file_node = newNode(&new_file, FILE_OWNER_TYPE);
 				push(file_list, file_node);
 			}
-			pthread_cond_broadcast(&cond_file_list);
+			//pthread_cond_broadcast(&cond_file_list);
 
 			fprintf(stream, "%s > added a new file: %s\n", 
 					cli_addr, filename);
@@ -274,6 +273,7 @@ void update_file_list(struct net_info cli_info){
 				fprintf(stream, "%s > deleted a file: %s\n", cli_addr, filename);
 			}
 		}
+		pthread_cond_broadcast(&cond_file_list);
 		pthread_cleanup_pop(0);
 		pthread_mutex_unlock(&lock_file_list);
 	}
@@ -309,7 +309,6 @@ void process_list_files_request(struct net_info cli_info){
 	
 
 	pthread_mutex_lock(&lock_file_list);
-	pthread_cleanup_push(mutex_unlock, &lock_file_list);
 
 	if (file_list == NULL)
 		n_files = 0;
@@ -320,7 +319,6 @@ void process_list_files_request(struct net_info cli_info){
 	n_bytes = writeBytes(cli_info.sockfd, 
 						&n_files, 
 						sizeof(n_files));
-	pthread_cleanup_pop(0);		//lock_file_list
 	if (n_bytes <= 0){
 		pthread_mutex_unlock(&lock_file_list);
 		handleSocketError(cli_info, "send n_files");
@@ -480,7 +478,7 @@ void* process_list_hosts_request(void *arg){
 	//the old host list, use to compare with the new host list
 	//to detect the changed hosts
 	struct LinkedList *old_ll = newLinkedList();
-	pthread_cleanup_push(destructLinkedList, (void*)old_ll);
+
 	//the changed hosts
 	struct LinkedList *chg_hosts = NULL;
 	pthread_mutex_lock(&lock_file_list);
@@ -489,6 +487,7 @@ void* process_list_hosts_request(void *arg){
 		/* client request a new file */
 		if (sequence != thrdt->seq_no){
 			pthread_mutex_unlock(&lock_file_list);
+			destructLinkedList(old_ll);
 			/* terminate this thread */
 			fprintf(stream, "[process_list_hosts_request] terminate thread due to the difference of sequence number\n");
 			int ret = 100;
@@ -569,7 +568,6 @@ void* process_list_hosts_request(void *arg){
 		pthread_mutex_unlock(&lock_file_list);
 
 		//int old_state;
-		pthread_cleanup_push(destructLinkedList, (void*)chg_hosts);
 		//prevent thread exiting, avoid sending incomplete message
 		//pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old_state);
 
@@ -583,12 +581,10 @@ void* process_list_hosts_request(void *arg){
 		//pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old_state);
 		//pthread_testcancel();	//thread cancelation point
 
-		pthread_cleanup_pop(0);	//destructLinkedList chg_hosts
 		destructLinkedList(chg_hosts);
 		chg_hosts = NULL;
 		pthread_cond_wait(&cond_file_list, &lock_file_list);
 	}
-	pthread_cleanup_pop(0);		//destructLinkedList old_ll
 
 	return NULL;
 }

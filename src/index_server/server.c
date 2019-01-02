@@ -100,10 +100,12 @@ void *serveClient(void *arg){
 	pthread_detach(pthread_self());
 	struct net_info cli_info = *((struct net_info*) arg);
 	free(arg);
+
 	cli_info.lock_sockfd = malloc(sizeof(pthread_mutex_t));
 	pthread_cleanup_push(free_mem, cli_info.lock_sockfd);
+
 	*(cli_info.lock_sockfd) = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-	pthread_cleanup_push(close_socket, (void*)&(cli_info.sockfd));
+	//pthread_cleanup_push(close_socket, (void*)&(cli_info.sockfd));
 	char cli_addr[256];
 	sprintf(cli_addr, "%s:%u", cli_info.ip_add, cli_info.port);
 
@@ -194,7 +196,7 @@ void *serveClient(void *arg){
 		}
 	}
 	handleSocketError(cli_info, "read from socket");
-	pthread_cleanup_pop(0);		//close socket
+	//pthread_cleanup_pop(0);		//close socket
 	close(cli_info.sockfd);
 	pthread_cleanup_pop(0);		//free lock_sockfd
 	free(cli_info.lock_sockfd);
