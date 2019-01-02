@@ -9,6 +9,13 @@
 
 #define PACKET_TYPE_SIZE 1
 
+#define GREEN			"\x1b[32m"
+#define YELLOW			"\x1b[33m"
+#define BLUE			"\x1b[94m"
+#define RED				"\x1b[91"
+#define COLOR_RESET		"\x1b[0m"
+
+
 /* request types */
 extern const uint8_t DATA_PORT_ANNOUNCEMENT;
 extern const uint8_t FILE_LIST_UPDATE;

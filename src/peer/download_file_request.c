@@ -34,13 +34,15 @@ static void display_segment_list(){
 	memset(short_delim, '#', 32);
 	short_delim[32] = 0;
 
-	fprintf(stderr, "%s segment list %s\n", short_delim, short_delim);
+	fprintf(stderr, "%s" BLUE " segment list " COLOR_RESET "%s\n", short_delim, short_delim);
 	int max_width = 10;
 	struct Node *it = segment_list->head;
+	int i = 0;
 	for (; it != NULL; it = it->next){
 		struct Segment *seg = (struct Segment*)(it->data);
-		fprintf(stderr, "seg: offset=%*u, n_bytes=%*u, seg_size=%*u, downloading=%d\n",
-				max_width, seg->offset, max_width, seg->n_bytes, 
+		i++;
+		fprintf(stderr, "seg %-3d: offset=%*u, n_bytes=%*u, seg_size=%*u, downloading=%d\n",
+				i, max_width, seg->offset, max_width, seg->n_bytes, 
 				max_width, seg->seg_size, seg->downloading);
 	}
 	fprintf(stderr, "%s\n", long_delim);
@@ -223,7 +225,7 @@ void* download_file(void *arg){
 		if (sockfd < 0){
 			handle_error(segment, addr_str, "connect to download");
 		}
-		fprintf(stdout, "%s > segment offset: %u\n", addr_str, segment->offset);
+		fprintf(stdout, YELLOW "%s > segment offset: %u" COLOR_RESET "\n", addr_str, segment->offset);
 
 		/* send download file request */
 		uint32_t n_bytes = 0;
@@ -319,7 +321,7 @@ void* download_file(void *arg){
 					//fclose(bak);
 					close(filefd);
 					segment->downloading = 0;
-					fprintf(stdout, "%s > segment offset %u done, n_bytes=%u\n", 
+					fprintf(stdout, GREEN "%s > segment offset %u done, n_bytes=%u" COLOR_RESET "\n" , 
 							addr_str, segment->offset, segment->n_bytes);
 					pthread_mutex_unlock(&segment->lock_seg);
 					break;

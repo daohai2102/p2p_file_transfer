@@ -20,6 +20,8 @@
 
 const char EXIT_CMD[] = "exit";
 
+void print_help();
+
 int main(int argc, char **argv){
 	if (argc > 1){
 		if (!strcmp(argv[1], "--debug"))
@@ -157,18 +159,39 @@ int main(int argc, char **argv){
 
 					long duration = (end.tv_sec - begin.tv_sec)*1e3
 									+ (end.tv_nsec - begin.tv_nsec)/1e6;
-					printf("Elapsed time: %ld nanoseconds\n", duration);
+					printf("Elapsed time: %ld miliseconds\n", duration);
 				}
 			} else {
 				printf("help: get <filename>\n");
 			}
 			printf("command> ");
 			fflush(stdout);
+		} else if (strcmp(command, "help") == 0) {
+			print_help();
+			printf("command> ");
+			fflush(stdout);
 		} else if (strcmp(command, EXIT_CMD) == 0){
 			return 0;
+		} else {
+			print_help();
+			printf("command> ");
+			fflush(stdout);
 		}
 
 	}
 
 	return 0;
+}
+
+void print_help(){
+	printf("Commands:\n");
+	printf("\t\tls");
+	printf("\t\t\t\t- list files\n");
+	printf("\t\trm <filename>");
+	printf("\t\t\t- remove file\n");
+	printf("\t\tget <filename>");
+	printf("\t\t\t- download file\n");
+	printf("\t\texit");
+	printf("\t\t\t\t- exit this program\n");
+	printf("\n");
 }
