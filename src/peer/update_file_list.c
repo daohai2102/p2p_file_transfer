@@ -172,7 +172,7 @@ void monitor_directory(char *dir, int socketfd){
 		exit(1);
 	}
 
-	watch = inotify_add_watch(inotifyfd, dir, IN_CREATE | IN_DELETE | IN_MOVED_TO | IN_CLOSE_WRITE);
+	watch = inotify_add_watch(inotifyfd, dir, IN_CREATE | IN_DELETE | IN_MOVED_TO | IN_CLOSE_WRITE | IN_MOVED_FROM);
 	if (watch < 0){
 		print_error("inotify_add_watch");
 		exit(1);
