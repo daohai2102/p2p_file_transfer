@@ -380,21 +380,21 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	}
 	
 	//send filename length
-	uint16_t filename_length = strlen(thrdt->filename) + 1;
-	fprintf(stream, "[send_host_list]send filename_length: %u\n", filename_length);
-	filename_length = htons(filename_length);
+	//uint16_t filename_length = strlen(thrdt->filename) + 1;
+	//fprintf(stream, "[send_host_list]send filename_length: %u\n", filename_length);
+	//filename_length = htons(filename_length);
 
-	n_bytes = writeBytes(thrdt->cli_info.sockfd, &filename_length, sizeof(filename_length));
-	if (n_bytes <= 0){
-		handleSocketError(thrdt->cli_info, "send filename_length");
-	}
-	
-	//send filename
-	fprintf(stream, "[send_host_list] send filename: %s\n", thrdt->filename);
-	n_bytes = writeBytes(thrdt->cli_info.sockfd, thrdt->filename, ntohs(filename_length));
-	if (n_bytes <= 0){
-		handleSocketError(thrdt->cli_info, "send filename");
-	}
+	//n_bytes = writeBytes(thrdt->cli_info.sockfd, &filename_length, sizeof(filename_length));
+	//if (n_bytes <= 0){
+	//	handleSocketError(thrdt->cli_info, "send filename_length");
+	//}
+	//
+	////send filename
+	//fprintf(stream, "[send_host_list] send filename: %s\n", thrdt->filename);
+	//n_bytes = writeBytes(thrdt->cli_info.sockfd, thrdt->filename, ntohs(filename_length));
+	//if (n_bytes <= 0){
+	//	handleSocketError(thrdt->cli_info, "send filename");
+	//}
 
 	//send filesize
 	fprintf(stream, "[send_host_list] send filesize: %u\n", thrdt->filesize);
@@ -506,9 +506,13 @@ void* process_list_hosts_request(void *arg){
 			 * if check[i] is equal to the number of hosts in the old_ll,
 			 * => the i-th host is the new host */
 			uint8_t *check = malloc(file->host_list->n_nodes);
+			fprintf(stream, "initialize check\n");
 			bzero(check, file->host_list->n_nodes);
 
+			fprintf(stream, "[process_list_hosts_request] detect new/deleted hosts\n");
+
 			struct Node *it1 = old_ll->head;
+			fprintf(stream, "[process_list_hosts_request] check for deleted hosts\n");
 			for (; it1 != NULL; it1 = it1->next){
 				struct DataHost *host1 = (struct DataHost*)(it1->data);
 				fprintf(stream, "[process_list_hosts_request]\'%s\' compare host (%u:%u) with\n", 
@@ -540,6 +544,7 @@ void* process_list_hosts_request(void *arg){
 			}
 			uint8_t i = 0;
 			struct Node *it = file->host_list->head;
+			fprintf(stream, "[process_list_hosts_request] check for new hosts\n");
 			for (; it != NULL; it = it->next){
 				/* new host */
 				if (check[i] == old_ll->n_nodes){
@@ -550,8 +555,12 @@ void* process_list_hosts_request(void *arg){
 				}
 				i++;
 			}
+
+			fprintf(stream, "[process_list_hosts_request] free(check)\n");
 			free(check);
+			fprintf(stream, "[process_list_hosts_request] destruct old_ll\n");
 			destructLinkedList(old_ll);
+			fprintf(stream, "[process_list_hosts_request] copy to old_ll\n");
 			old_ll = copyLinkedList(file->host_list);
 		} else {
 			/* there is no host that own the file */
