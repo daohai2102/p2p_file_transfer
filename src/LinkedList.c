@@ -89,6 +89,21 @@ struct LinkedList* copyLinkedList(struct LinkedList *srcll){
 	return dstll;
 }
 
+void freeNode(struct Node *node){
+	if (!node)
+		return;
+	switch(node->type){
+		case FILE_OWNER_TYPE:
+		{
+			struct FileOwner *file = (struct FileOwner*)(node->data);
+			destructLinkedList(file->host_list);
+			break;
+		}
+	}
+	free(node->data);
+	free(node);
+}
+
 void destructLinkedList(void *arg){
 	struct LinkedList *ll = (struct LinkedList*)arg;
 	if (ll->n_nodes == 0){
@@ -100,16 +115,7 @@ void destructLinkedList(void *arg){
 
 	while (it != NULL){
 		struct Node *tmp = it->next;
-		switch (it->type){
-			case FILE_OWNER_TYPE:
-			{
-				struct FileOwner *file = (struct FileOwner*)(it->data);
-				destructLinkedList(file->host_list);
-				break;
-			}
-		}
-		free(it->data);
-		free(it);
+		freeNode(it);
 		it = tmp;
 	}
 

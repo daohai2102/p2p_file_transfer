@@ -396,19 +396,28 @@ int download_done(){
 
 	pthread_mutex_lock(&lock_the_file);
 	/* increase sequence number */
+	fprintf(stream, "[download_done] increase sequence number\n");
 	seq_no ++;
 
 	/* move the file to the current directory */
+	fprintf(stream, "[download_done] move the file from .temp/ to ./\n");
 	char full_name[400];
 	strcpy(full_name, tmp_dir);
 	strcat(full_name, the_file->filename);
 	rename(full_name, the_file->filename);
 
 	/* destruct the_file and segment_list */
-	destructLinkedList(the_file);
+	fprintf(stream, "[download_done] destruct the_file\n");
+	if (!the_file){
+		fprintf(stream, "thefile == NULL\n");
+	}
+	destructLinkedList(the_file->host_list);
+	free(the_file);
+	fprintf(stream, "assign the_file=NULL\n");
 	the_file = NULL;
 	pthread_mutex_unlock(&lock_the_file);
 
+	fprintf(stream, "[download_done] destruct segment_list\n");
 	pthread_mutex_lock(&lock_segment_list);
 	destructLinkedList(segment_list);
 	segment_list = NULL;

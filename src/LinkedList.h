@@ -63,6 +63,8 @@ struct LinkedList* newLinkedList();
 
 struct LinkedList* copyLinkedList(struct LinkedList *srcll);
 
+void freeNode(struct Node *node);
+
 void destructLinkedList(void *arg);
 
 int llistContain(struct LinkedList ll, struct Node *node);
