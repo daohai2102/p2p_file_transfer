@@ -93,22 +93,22 @@ void process_list_hosts_response(){
 	fprintf(stream, "[process_list_hosts_response] received seq_no: %u\n", sequence);
 
 
-	uint16_t filename_length;
-	n_bytes = readBytes(servsock, &filename_length, sizeof(filename_length));
-	if (n_bytes <= 0){
-		print_error("[process_list_hosts_response]read filename_length");
-		exit(1);
-	}
-	filename_length = ntohs(filename_length);
-	fprintf(stream, "[process_list_hosts_response]filename_length: %u\n", filename_length);
+	//uint16_t filename_length;
+	//n_bytes = readBytes(servsock, &filename_length, sizeof(filename_length));
+	//if (n_bytes <= 0){
+	//	print_error("[process_list_hosts_response]read filename_length");
+	//	exit(1);
+	//}
+	//filename_length = ntohs(filename_length);
+	//fprintf(stream, "[process_list_hosts_response]filename_length: %u\n", filename_length);
 
-	char filename[256];
-	n_bytes = readBytes(servsock, filename, filename_length);
-	if (n_bytes <= 0){
-		print_error("[process_list_hosts_response]read filename");
-		exit(1);
-	}
-	fprintf(stream, "[process_list_hosts_response]filename: %s\n", filename);
+	//char filename[256];
+	//n_bytes = readBytes(servsock, filename, filename_length);
+	//if (n_bytes <= 0){
+	//	print_error("[process_list_hosts_response]read filename");
+	//	exit(1);
+	//}
+	//fprintf(stream, "[process_list_hosts_response]filename: %s\n", filename);
 	
 	uint32_t filesize;
 	n_bytes = readBytes(servsock, &filesize, sizeof(filesize));
