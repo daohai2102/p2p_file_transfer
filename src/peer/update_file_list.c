@@ -203,7 +203,6 @@ void monitor_directory(char *dir, int socketfd){
 			if (event->len){
 				if (!(event->mask & IN_ISDIR)){
 					if (event->mask & IN_CREATE){
-						printf("IN_CREATE: %s\n", event->name);
 						struct Node *file_node = newNode(event->name, STRING_TYPE);
 						push(monitor_files, file_node);
 					} else if (event->mask & IN_MOVED_TO){
@@ -216,7 +215,6 @@ void monitor_directory(char *dir, int socketfd){
 						fs[n_fs].filesize = sz;
 						n_fs ++;
 					} else if (event->mask & IN_CLOSE_WRITE){
-						printf("IN_CLOSE_WRITE: %s\n", event->name);
 						struct Node *file_node = getNode(monitor_files, event->name);
 						if (file_node){
 							fprintf(stream, "The file %s was created.\n", event->name);
