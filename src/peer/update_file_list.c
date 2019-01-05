@@ -5,6 +5,7 @@
 #include <dirent.h>
 #include <sys/inotify.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "update_file_list.h"
 #include "../common.h"
@@ -117,6 +118,13 @@ void* update_file_list(void *arg){
 		while ((ent = readdir(dir)) != NULL){
 			if (ent->d_name[0] == '.')
 				continue;
+			struct stat statbuf;
+			int st = stat(ent->d_name, &statbuf);
+			if (st != 0 || !S_ISREG(statbuf.st_mode)){
+				/* This is not a regular file , so ignore */
+				continue;
+			}
+			
 			fprintf(stream, "new file: %s\n", ent->d_name);
 			strcpy(fs[n_fs].filename, ent->d_name);
 			fprintf(stream, "fs[n_fs].filename: %s\n", fs[n_fs].filename);
