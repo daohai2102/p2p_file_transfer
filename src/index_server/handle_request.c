@@ -296,7 +296,7 @@ void process_list_files_request(struct net_info cli_info){
 	long n_bytes;
 	uint8_t n_files = 0;
 	pthread_mutex_lock(cli_info.lock_sockfd);
-	pthread_cleanup_push(mutex_unlock, cli_info.lock_sockfd);
+	//pthread_cleanup_push(mutex_unlock, cli_info.lock_sockfd);
 	//pthread_cleanup_push(mutex_unlock, cli_info.lock_sockfd);
 	//pthread_cleanup_push(mutex_unlock, &lock_file_list);
 
@@ -304,6 +304,7 @@ void process_list_files_request(struct net_info cli_info){
 						(void*)&LIST_FILES_RESPONSE, 
 						sizeof(LIST_FILES_RESPONSE));
 	if (n_bytes <= 0){
+		pthread_mutex_unlock(cli_info.lock_sockfd);
 		handleSocketError(cli_info, "send LIST_FILES_RESPONSE message");
 	}
 	
@@ -321,10 +322,11 @@ void process_list_files_request(struct net_info cli_info){
 						sizeof(n_files));
 	if (n_bytes <= 0){
 		pthread_mutex_unlock(&lock_file_list);
+		pthread_mutex_unlock(cli_info.lock_sockfd);
 		handleSocketError(cli_info, "send n_files");
 	}
 
-	pthread_cleanup_pop(0);		//lock_sockfd
+	//pthread_cleanup_pop(0);		//lock_sockfd
 
 	if (n_files == 0){
 		pthread_mutex_unlock(&lock_file_list);
@@ -332,7 +334,7 @@ void process_list_files_request(struct net_info cli_info){
 		return;
 	}
 
-	pthread_cleanup_push(mutex_unlock, cli_info.lock_sockfd);
+	//pthread_cleanup_push(mutex_unlock, cli_info.lock_sockfd);
 
 	struct Node *it = file_list->head;
 	for (; it != NULL; it = it->next){
@@ -342,24 +344,26 @@ void process_list_files_request(struct net_info cli_info){
 		n_bytes = writeBytes(cli_info.sockfd, &filename_length, sizeof(filename_length));
 		if (n_bytes <= 0){
 			pthread_mutex_unlock(&lock_file_list);
+			pthread_mutex_unlock(cli_info.lock_sockfd);
 			handleSocketError(cli_info, "send filename_length");
 		}
 		
 		n_bytes = writeBytes(cli_info.sockfd, file->filename, ntohs(filename_length));
 		if (n_bytes <= 0){
 			pthread_mutex_unlock(&lock_file_list);
+			pthread_mutex_unlock(cli_info.lock_sockfd);
 			handleSocketError(cli_info, "send filename");
 		}
 	}
 	pthread_mutex_unlock(&lock_file_list);
-	pthread_cleanup_pop(0);		//lock_sockfd
+	//pthread_cleanup_pop(0);		//lock_sockfd
 	pthread_mutex_unlock(cli_info.lock_sockfd);
 }
 
 static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hosts){
 	fprintf(stream, "execute send_host_list\n");
 	pthread_mutex_lock(thrdt->cli_info.lock_sockfd);
-	pthread_cleanup_push(mutex_unlock, thrdt->cli_info.lock_sockfd);
+	//pthread_cleanup_push(mutex_unlock, thrdt->cli_info.lock_sockfd);
 	
 	//send header
 	fprintf(stream, "[send_host_list] send LIST_HOSTS_RESPONSE\n");
@@ -367,6 +371,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 							(void*)&LIST_HOSTS_RESPONSE, 
 							sizeof(LIST_HOSTS_RESPONSE));
 	if (n_bytes <= 0){
+		pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 		handleSocketError(thrdt->cli_info, "send LIST_HOSTS_RESPONSE message");
 	}
 
@@ -376,6 +381,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 						&thrdt->seq_no,
 						sizeof(thrdt->seq_no));
 	if (n_bytes <= 0){
+		pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 		handleSocketError(thrdt->cli_info, "[send_host_list] send sequence number");
 	}
 	
@@ -401,6 +407,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 	uint32_t filesize = htonl(thrdt->filesize);
 	n_bytes = writeBytes(thrdt->cli_info.sockfd, &filesize, sizeof(filesize));
 	if (n_bytes <= 0){
+		pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 		handleSocketError(thrdt->cli_info, "send filesize");
 	}
 
@@ -413,6 +420,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 							&(n_nodes), 
 							sizeof(n_nodes));
 		if (n_bytes <= 0){
+			pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 			handleSocketError(thrdt->cli_info, "send n_hosts");
 		}
 		pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
@@ -424,6 +432,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 						&(chg_hosts->n_nodes), 
 						sizeof(chg_hosts->n_nodes));
 	if (n_bytes <= 0){
+		pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 		handleSocketError(thrdt->cli_info, "send n_hosts");
 	}
 
@@ -434,6 +443,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 		fprintf(stream, "[send_host_list] send status: %u\n", host->status);
 		n_bytes = writeBytes(thrdt->cli_info.sockfd, &(host->status), sizeof(host->status));
 		if (n_bytes <= 0){
+			pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 			handleSocketError(thrdt->cli_info, "send status");
 		}
 
@@ -442,6 +452,7 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 		uint32_t ip_addr = htonl(host->ip_addr);
 		n_bytes = writeBytes(thrdt->cli_info.sockfd, &ip_addr, sizeof(ip_addr));
 		if (n_bytes <= 0){
+			pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 			handleSocketError(thrdt->cli_info, "send ip addr");
 		}
 
@@ -450,10 +461,10 @@ static void send_host_list(struct thread_data *thrdt, struct LinkedList *chg_hos
 		uint16_t data_port = htons(host->port);
 		n_bytes = writeBytes(thrdt->cli_info.sockfd, &data_port, sizeof(data_port));
 		if (n_bytes <= 0){
+			pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 			handleSocketError(thrdt->cli_info, "send data port");
 		}
 	}
-	pthread_cleanup_pop(0);
 	pthread_mutex_unlock(thrdt->cli_info.lock_sockfd);
 }
 
